@@ -107,6 +107,7 @@ async function restoreCache() {
     core.saveState(cacheKeyState, key);
     console.info('Cache key is', key);
     const restoreKeys = [`vcpkg-${runnerOs}-${refName}-`, `vcpkg-${runnerOs}-`];
+    console.info('Cache restore keys are', restoreKeys);
     try {
         const hitKey = await cache.restoreCache([cacheDir], key, restoreKeys);
         if (hitKey != null) {
