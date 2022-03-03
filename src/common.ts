@@ -2,14 +2,23 @@ import { setFailed } from '@actions/core';
 import { env } from 'process';
 
 export const cacheKeyState = 'cacheKey' as const;
+export const mainStepSucceededState = 'mainStepSucceeded' as const;
 
 export function getEnvVariable(name: string): string
 export function getEnvVariable(name: string, required: true): string
 export function getEnvVariable(name: string, required: false): string | undefined
 export function getEnvVariable(name: string, required: boolean = true): string | undefined {
-    const value = env[name];
-    if (required && value == null) {
-        throw new AbortActionError(`${name} environment variable is not set`);
+    let value = env[name];
+    if (value === undefined) {
+        console.info(`${name} environment variable is not set`);
+    } else {
+        console.info(`${name} environment variable is ${value}`);
+        if (!value) {
+            value = undefined;
+        }
+    }
+    if (value === undefined && required) {
+        throw new AbortActionError(`${name} environment variable is not set or empty`);
     }
     return value;
 }

@@ -57051,14 +57051,24 @@ module.exports.implForWrapper = function (wrapper) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runMain = exports.errorAsString = exports.AbortActionError = exports.getEnvVariable = exports.cacheKeyState = void 0;
+exports.runMain = exports.errorAsString = exports.AbortActionError = exports.getEnvVariable = exports.mainStepSucceededState = exports.cacheKeyState = void 0;
 const core_1 = __nccwpck_require__(2186);
 const process_1 = __nccwpck_require__(7282);
 exports.cacheKeyState = 'cacheKey';
+exports.mainStepSucceededState = 'mainStepSucceeded';
 function getEnvVariable(name, required = true) {
-    const value = process_1.env[name];
-    if (required && value == null) {
-        throw new AbortActionError(`${name} environment variable is not set`);
+    let value = process_1.env[name];
+    if (value === undefined) {
+        console.info(`${name} environment variable is not set`);
+    }
+    else {
+        console.info(`${name} environment variable is ${value}`);
+        if (!value) {
+            value = undefined;
+        }
+    }
+    if (value === undefined && required) {
+        throw new AbortActionError(`${name} environment variable is not set or empty`);
     }
     return value;
 }
@@ -57475,6 +57485,7 @@ async function main() {
     await setupVcpkg(await extractVcpkgCommit());
     await restoreCache();
     await runVcpkgInstall(inputs);
+    core.saveState(common_1.mainStepSucceededState, 'true');
 }
 (0, common_1.runMain)(main);
 

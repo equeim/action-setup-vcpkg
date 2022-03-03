@@ -5,7 +5,7 @@ import { ChildProcess, spawn } from 'child_process';
 
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
-import { AbortActionError, cacheKeyState, errorAsString, getEnvVariable, runMain } from './common';
+import { AbortActionError, mainStepSucceededState, cacheKeyState, errorAsString, getEnvVariable, runMain } from './common';
 
 type Inputs = {
     runInstall: boolean;
@@ -140,6 +140,7 @@ async function main() {
     await setupVcpkg(await extractVcpkgCommit());
     await restoreCache();
     await runVcpkgInstall(inputs);
+    core.saveState(mainStepSucceededState, 'true');
 }
 
 runMain(main);

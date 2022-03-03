@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 
-import { cacheKeyState, getEnvVariable, AbortActionError, errorAsString, runMain } from './common';
+import { cacheKeyState, getEnvVariable, AbortActionError, errorAsString, runMain, mainStepSucceededState } from './common';
 
 const maximumCacheSize = 3 * 1024 * 1024 * 1024;
 
@@ -96,6 +96,11 @@ async function saveCache(cacheDir: string) {
 }
 
 async function main() {
+    const mainStepSucceeded = core.getState(mainStepSucceededState);
+    if (mainStepSucceeded !== 'true') {
+        console.info('Main step did not succeed, skip saving cache');
+        return;
+    }
     const cacheDir = getEnvVariable('VCPKG_DEFAULT_BINARY_CACHE');
     const packages = await removeOldestPackages(await findCachedPackages(cacheDir))
     if (packages.length > 0) {
