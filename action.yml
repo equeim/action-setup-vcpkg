@@ -1,0 +1,18 @@
+name: 'Set up vcpkg'
+inputs:
+  run-install:
+    description: Run vcpkg install command
+    required: false
+    default: 'false'
+  triplet:
+    description: 'Vcpkg triplet (required when run-install is true)'
+    required: false
+    default: ''
+  install-features:
+    description: 'Vcpkg manifest features'
+    required: false
+    default: ''
+runs:
+  using: 'node16'
+  main: 'dist/main/index.js'
+  post: 'dist/post/index.js'
