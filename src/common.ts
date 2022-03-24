@@ -1,7 +1,11 @@
-import { setFailed } from '@actions/core';
+import { exportVariable, setFailed } from '@actions/core';
+import { createHash } from 'crypto';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { env } from 'process';
 
 export const cacheKeyState = 'cacheKey' as const;
+export const latestBinaryPackageHashState = 'latestBinaryPackageHash' as const;
 export const mainStepSucceededState = 'mainStepSucceeded' as const;
 
 export function getEnvVariable(name: string): string
@@ -21,6 +25,51 @@ export function getEnvVariable(name: string, required: boolean = true): string |
         throw new AbortActionError(`${name} environment variable is not set or empty`);
     }
     return value;
+}
+
+export function getCacheDir(): string {
+    return getEnvVariable('VCPKG_DEFAULT_BINARY_CACHE');
+}
+
+export function setCacheDir(cacheDir: string) {
+    exportVariable('VCPKG_DEFAULT_BINARY_CACHE', cacheDir);
+}
+
+export type BinaryPackage = {
+    filePath: string,
+    size: number,
+    mtimeMs: number
+};
+
+async function findBinaryPackagesInDir(dirPath: string, packages: BinaryPackage[]) {
+    const dir = await fs.opendir(dirPath);
+    for await (const dirent of dir) {
+        if (dirent.isDirectory()) {
+            await findBinaryPackagesInDir(path.join(dirPath, dirent.name), packages);
+        } else if (dirent.isFile()) {
+            const filePath = path.join(dirPath, dirent.name);
+            const stat = await fs.stat(filePath);
+            packages.push({ filePath: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
+        }
+    }
+}
+
+export async function findBinaryPackages(): Promise<BinaryPackage[]> {
+    const packages: BinaryPackage[] = [];
+    await findBinaryPackagesInDir(getCacheDir(), packages);
+    // Sort by mtime in descending order, so that oldest files are at the end
+    packages.sort((a, b) => {
+        return b.mtimeMs - a.mtimeMs;
+    });
+    return packages;
+}
+
+export function computeHashOfBinaryPackage(pkg: BinaryPackage): string {
+    const hash = createHash('sha256');
+    hash.update(pkg.filePath);
+    hash.update(pkg.mtimeMs.toString());
+    hash.update(pkg.size.toString());
+    return hash.digest('hex');
 }
 
 export class AbortActionError extends Error {

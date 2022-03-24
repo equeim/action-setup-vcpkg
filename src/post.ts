@@ -1,10 +1,9 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
+import * as fs from 'fs/promises';
+import { AbortActionError, BinaryPackage, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getCacheDir, latestBinaryPackageHashState, mainStepSucceededState, runMain } from './common';
 
-import { cacheKeyState, getEnvVariable, AbortActionError, errorAsString, runMain, mainStepSucceededState } from './common';
+
 
 const maximumCacheSize = 3 * 1024 * 1024 * 1024;
 
@@ -12,45 +11,36 @@ function bytesToMibibytes(bytes: number): number {
     return (bytes / (1024.0 * 1024.0));
 }
 
-type CachedPackage = {
-    filePath: string,
-    size: number,
-    mtimeMs: number
-};
-
-async function findCachedPackagesInDir(dirPath: string, packages: CachedPackage[]) {
-    const dir = await fs.opendir(dirPath);
-    for await (const dirent of dir) {
-        if (dirent.isDirectory()) {
-            await findCachedPackagesInDir(path.join(dirPath, dirent.name), packages);
-        } else if (dirent.isFile()) {
-            const filePath = path.join(dirPath, dirent.name);
-            const stat = await fs.stat(filePath);
-            packages.push({ filePath: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
-        }
-    }
-}
-
-type CachedPackages = {
-    packages: CachedPackage[];
+type BinaryPackages = {
+    packages: BinaryPackage[];
     totalSize: number;
 }
 
-async function findCachedPackages(cacheDir: string): Promise<CachedPackages> {
+async function findBinaryPackagesAndComputeTotalSize(): Promise<BinaryPackages> {
     core.startGroup('Searching packages in binary cache');
-    const packages: CachedPackage[] = [];
-    await findCachedPackagesInDir(cacheDir, packages);
-    // Sort by mtime in descending order, so that oldest files are at the end
-    packages.sort((a, b) => {
-        return b.mtimeMs - a.mtimeMs;
-    });
+    const packages = await findBinaryPackages();
     let totalSize = packages.reduce((prev, cur) => prev + cur.size, 0);
     console.info('Found', packages.length, 'cached packages, total size is', bytesToMibibytes(totalSize), 'MiB');
     core.endGroup();
     return { packages: packages, totalSize: totalSize };
 }
 
-async function removeOldestPackages(cachedPackages: CachedPackages): Promise<CachedPackage[]> {
+function didLatestPackageChange(packages: BinaryPackage[]): boolean {
+    const previousHash = core.getState(latestBinaryPackageHashState);
+    console.info('Previous hash of latest binary package is', previousHash);
+    const latestBinaryPackage = packages.at(0)!!;
+    console.info('Latest binary package is', latestBinaryPackage);
+    const hash = computeHashOfBinaryPackage(latestBinaryPackage);
+    console.info('Hash of latest binary package is', hash);
+    if (hash === previousHash) {
+        console.info('Hash of latest binary package did not change');
+        return false;
+    }
+    console.info('Hash of latest binary package changed');
+    return true;
+}
+
+async function removeOldestPackages(cachedPackages: BinaryPackages): Promise<BinaryPackage[]> {
     let { packages, totalSize } = cachedPackages;
     if (totalSize <= maximumCacheSize) {
         return packages;
@@ -79,7 +69,7 @@ async function removeOldestPackages(cachedPackages: CachedPackages): Promise<Cac
     return packages;
 }
 
-async function saveCache(cacheDir: string) {
+async function saveCache() {
     core.startGroup('Saving cache');
     const key = core.getState(cacheKeyState);
     if (!key) {
@@ -87,7 +77,7 @@ async function saveCache(cacheDir: string) {
     }
     console.info('Saving cache with key', key);
     try {
-        await cache.saveCache([cacheDir], key);
+        await cache.saveCache([getCacheDir()], key);
     } catch (error) {
         console.error(error);
         core.error(`Failed to save cache with error ${errorAsString(error)}`);
@@ -101,11 +91,21 @@ async function main() {
         console.info('Main step did not succeed, skip saving cache');
         return;
     }
-    const cacheDir = getEnvVariable('VCPKG_DEFAULT_BINARY_CACHE');
-    const packages = await removeOldestPackages(await findCachedPackages(cacheDir))
-    if (packages.length > 0) {
-        await saveCache(cacheDir);
+    const packages = await findBinaryPackagesAndComputeTotalSize();
+    if (packages.packages.length == 0) {
+        console.info('No binary packages, skip saving cache');
+        return;
     }
+    if (!didLatestPackageChange(packages.packages)) {
+        console.info('Latest binary package did not change, skip saving cache');
+        return;
+    }
+    const newPackages = await removeOldestPackages(packages);
+    if (newPackages.length == 0) {
+        console.info('All binary packages were removed, skip saving cache');
+        return;
+    }
+    await saveCache();
 }
 
 runMain(main);

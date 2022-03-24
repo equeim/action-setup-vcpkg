@@ -1,11 +1,12 @@
+import * as cache from '@actions/cache';
+import * as core from '@actions/core';
+import { ChildProcess, spawn } from 'child_process';
+import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { ChildProcess, spawn } from 'child_process';
+import { AbortActionError, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getEnvVariable, latestBinaryPackageHashState, mainStepSucceededState, runMain, setCacheDir } from './common';
 
-import * as cache from '@actions/cache';
-import * as core from '@actions/core';
-import { AbortActionError, mainStepSucceededState, cacheKeyState, errorAsString, getEnvVariable, runMain } from './common';
 
 type Inputs = {
     runInstall: boolean;
@@ -92,26 +93,33 @@ async function restoreCache() {
         console.error(error);
         throw new AbortActionError(`Failed to create cache directory with error ${errorAsString(error)}`);
     }
-    core.exportVariable('VCPKG_DEFAULT_BINARY_CACHE', cacheDir);
+    setCacheDir(cacheDir);
     console.info('Vcpkg binary cache directory is', cacheDir);
 
     const runnerOs = getEnvVariable('RUNNER_OS');
-    const baseRefName = getEnvVariable('GITHUB_BASE_REF', false);
-    const refName = baseRefName ?? getEnvVariable('GITHUB_REF_NAME');
     /**
      * Since there is no reliable way to know whether vcpkg will rebuild packages,
-     * last part of key is random so that exact matches never occur and cache is always uploaded
+     * last part of key is random so that exact matches never occur and cache is upload
+     * only if vcpkg actually created new binary packages
      */
-    const randomString = Buffer.from(Math.random().toString()).toString('base64');
-    const key = `vcpkg-${runnerOs}-${refName}-${randomString}`;
+    const key = `vcpkg-${runnerOs}-${randomBytes(32).toString('hex')}`;
     core.saveState(cacheKeyState, key);
     console.info('Cache key is', key);
-    const restoreKeys = [`vcpkg-${runnerOs}-${refName}-`, `vcpkg-${runnerOs}-`];
+    const restoreKeys = [`vcpkg-${runnerOs}-`];
     console.info('Cache restore keys are', restoreKeys);
     try {
         const hitKey = await cache.restoreCache([cacheDir], key, restoreKeys);
         if (hitKey != null) {
-            console.info(`Cache hit on key ${hitKey}`);
+            console.info('Cache hit on key', hitKey);
+            const latestBinaryPackage = (await findBinaryPackages()).at(0);
+            if (latestBinaryPackage != null) {
+                console.info('Latest binary package is', latestBinaryPackage);
+                const hash = computeHashOfBinaryPackage(latestBinaryPackage);
+                console.info('Hash of latest binary package is', hash);
+                core.saveState(latestBinaryPackageHashState, hash);
+            } else {
+                console.info('No binary packages');
+            }
         } else {
             console.info('Cache miss');
         }

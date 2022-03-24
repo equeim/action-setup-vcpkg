@@ -57051,10 +57051,14 @@ module.exports.implForWrapper = function (wrapper) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runMain = exports.errorAsString = exports.AbortActionError = exports.getEnvVariable = exports.mainStepSucceededState = exports.cacheKeyState = void 0;
+exports.runMain = exports.errorAsString = exports.AbortActionError = exports.computeHashOfBinaryPackage = exports.findBinaryPackages = exports.setCacheDir = exports.getCacheDir = exports.getEnvVariable = exports.mainStepSucceededState = exports.latestBinaryPackageHashState = exports.cacheKeyState = void 0;
 const core_1 = __nccwpck_require__(2186);
+const crypto_1 = __nccwpck_require__(6113);
+const fs = __nccwpck_require__(3292);
+const path = __nccwpck_require__(1017);
 const process_1 = __nccwpck_require__(7282);
 exports.cacheKeyState = 'cacheKey';
+exports.latestBinaryPackageHashState = 'latestBinaryPackageHash';
 exports.mainStepSucceededState = 'mainStepSucceeded';
 function getEnvVariable(name, required = true) {
     let value = process_1.env[name];
@@ -57073,6 +57077,45 @@ function getEnvVariable(name, required = true) {
     return value;
 }
 exports.getEnvVariable = getEnvVariable;
+function getCacheDir() {
+    return getEnvVariable('VCPKG_DEFAULT_BINARY_CACHE');
+}
+exports.getCacheDir = getCacheDir;
+function setCacheDir(cacheDir) {
+    (0, core_1.exportVariable)('VCPKG_DEFAULT_BINARY_CACHE', cacheDir);
+}
+exports.setCacheDir = setCacheDir;
+async function findBinaryPackagesInDir(dirPath, packages) {
+    const dir = await fs.opendir(dirPath);
+    for await (const dirent of dir) {
+        if (dirent.isDirectory()) {
+            await findBinaryPackagesInDir(path.join(dirPath, dirent.name), packages);
+        }
+        else if (dirent.isFile()) {
+            const filePath = path.join(dirPath, dirent.name);
+            const stat = await fs.stat(filePath);
+            packages.push({ filePath: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
+        }
+    }
+}
+async function findBinaryPackages() {
+    const packages = [];
+    await findBinaryPackagesInDir(getCacheDir(), packages);
+    // Sort by mtime in descending order, so that oldest files are at the end
+    packages.sort((a, b) => {
+        return b.mtimeMs - a.mtimeMs;
+    });
+    return packages;
+}
+exports.findBinaryPackages = findBinaryPackages;
+function computeHashOfBinaryPackage(pkg) {
+    const hash = (0, crypto_1.createHash)('sha256');
+    hash.update(pkg.filePath);
+    hash.update(pkg.mtimeMs.toString());
+    hash.update(pkg.size.toString());
+    return hash.digest('hex');
+}
+exports.computeHashOfBinaryPackage = computeHashOfBinaryPackage;
 class AbortActionError extends Error {
     constructor(message) {
         super(message);
@@ -57355,12 +57398,13 @@ var __webpack_exports__ = {};
 var exports = __webpack_exports__;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+const cache = __nccwpck_require__(7799);
+const core = __nccwpck_require__(2186);
+const child_process_1 = __nccwpck_require__(2081);
+const crypto_1 = __nccwpck_require__(6113);
 const fs = __nccwpck_require__(3292);
 const os = __nccwpck_require__(2037);
 const path = __nccwpck_require__(1017);
-const child_process_1 = __nccwpck_require__(2081);
-const cache = __nccwpck_require__(7799);
-const core = __nccwpck_require__(2186);
 const common_1 = __nccwpck_require__(9108);
 function parseInputs() {
     const runInstall = core.getInput('run-install', { required: false });
@@ -57439,25 +57483,33 @@ async function restoreCache() {
         console.error(error);
         throw new common_1.AbortActionError(`Failed to create cache directory with error ${(0, common_1.errorAsString)(error)}`);
     }
-    core.exportVariable('VCPKG_DEFAULT_BINARY_CACHE', cacheDir);
+    (0, common_1.setCacheDir)(cacheDir);
     console.info('Vcpkg binary cache directory is', cacheDir);
     const runnerOs = (0, common_1.getEnvVariable)('RUNNER_OS');
-    const baseRefName = (0, common_1.getEnvVariable)('GITHUB_BASE_REF', false);
-    const refName = baseRefName ?? (0, common_1.getEnvVariable)('GITHUB_REF_NAME');
     /**
      * Since there is no reliable way to know whether vcpkg will rebuild packages,
-     * last part of key is random so that exact matches never occur and cache is always uploaded
+     * last part of key is random so that exact matches never occur and cache is upload
+     * only if vcpkg actually created new binary packages
      */
-    const randomString = Buffer.from(Math.random().toString()).toString('base64');
-    const key = `vcpkg-${runnerOs}-${refName}-${randomString}`;
+    const key = `vcpkg-${runnerOs}-${(0, crypto_1.randomBytes)(32).toString('hex')}`;
     core.saveState(common_1.cacheKeyState, key);
     console.info('Cache key is', key);
-    const restoreKeys = [`vcpkg-${runnerOs}-${refName}-`, `vcpkg-${runnerOs}-`];
+    const restoreKeys = [`vcpkg-${runnerOs}-`];
     console.info('Cache restore keys are', restoreKeys);
     try {
         const hitKey = await cache.restoreCache([cacheDir], key, restoreKeys);
         if (hitKey != null) {
-            console.info(`Cache hit on key ${hitKey}`);
+            console.info('Cache hit on key', hitKey);
+            const latestBinaryPackage = (await (0, common_1.findBinaryPackages)()).at(0);
+            if (latestBinaryPackage != null) {
+                console.info('Latest binary package is', latestBinaryPackage);
+                const hash = (0, common_1.computeHashOfBinaryPackage)(latestBinaryPackage);
+                console.info('Hash of latest binary package is', hash);
+                core.saveState(common_1.latestBinaryPackageHashState, hash);
+            }
+            else {
+                console.info('No binary packages');
+            }
         }
         else {
             console.info('Cache miss');
