@@ -12,6 +12,10 @@ inputs:
     description: 'Vcpkg manifest features'
     required: false
     default: ''
+  save-cache:
+    description: 'Enable cache saving'
+    required: false
+    default: 'true'
 runs:
   using: 'node16'
   main: 'dist/main/index.js'

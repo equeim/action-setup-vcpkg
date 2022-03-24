@@ -1,7 +1,7 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
-import { AbortActionError, BinaryPackage, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getCacheDir, latestBinaryPackageHashState, mainStepSucceededState, runMain } from './common';
+import { AbortActionError, BinaryPackage, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getCacheDir, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain } from './common';
 
 
 
@@ -89,6 +89,11 @@ async function main() {
     const mainStepSucceeded = core.getState(mainStepSucceededState);
     if (mainStepSucceeded !== 'true') {
         console.info('Main step did not succeed, skip saving cache');
+        return;
+    }
+    const inputs = parseInputs();
+    if (!inputs.saveCache) {
+        console.info('Cache saving is disabled, skip saving cache');
         return;
     }
     const packages = await findBinaryPackagesAndComputeTotalSize();

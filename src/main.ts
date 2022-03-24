@@ -5,32 +5,8 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AbortActionError, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getEnvVariable, latestBinaryPackageHashState, mainStepSucceededState, runMain, setCacheDir } from './common';
+import { AbortActionError, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getEnvVariable, Inputs, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain, setCacheDir } from './common';
 
-
-type Inputs = {
-    runInstall: boolean;
-    triplet: string;
-    installFeatures: string[];
-};
-
-function parseInputs(): Inputs {
-    const runInstall = core.getInput('run-install', { required: false });
-    console.info('Inputs: run-install is', runInstall);
-    const triplet = core.getInput('triplet', { required: false });
-    console.info('Inputs: triplet is', triplet);
-    const installFeatures = core.getInput('install-features', { required: false });
-    console.info('Inputs: install-features is', installFeatures);
-    const inputs = {
-        runInstall: runInstall === 'true',
-        triplet: triplet,
-        installFeatures: installFeatures.split(/\s+/).filter(Boolean),
-    };
-    if (inputs.runInstall && !triplet) {
-        throw new AbortActionError('Triplet must be defined');
-    }
-    return inputs;
-}
 
 async function execProcess(process: ChildProcess) {
     const exitCode: number = await new Promise((resolve, reject) => {

@@ -57051,7 +57051,7 @@ module.exports.implForWrapper = function (wrapper) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.runMain = exports.errorAsString = exports.AbortActionError = exports.computeHashOfBinaryPackage = exports.findBinaryPackages = exports.setCacheDir = exports.getCacheDir = exports.getEnvVariable = exports.mainStepSucceededState = exports.latestBinaryPackageHashState = exports.cacheKeyState = void 0;
+exports.runMain = exports.errorAsString = exports.AbortActionError = exports.computeHashOfBinaryPackage = exports.findBinaryPackages = exports.setCacheDir = exports.getCacheDir = exports.getEnvVariable = exports.parseInputs = exports.mainStepSucceededState = exports.latestBinaryPackageHashState = exports.cacheKeyState = void 0;
 const core_1 = __nccwpck_require__(2186);
 const crypto_1 = __nccwpck_require__(6113);
 const fs = __nccwpck_require__(3292);
@@ -57060,6 +57060,27 @@ const process_1 = __nccwpck_require__(7282);
 exports.cacheKeyState = 'cacheKey';
 exports.latestBinaryPackageHashState = 'latestBinaryPackageHash';
 exports.mainStepSucceededState = 'mainStepSucceeded';
+function parseInputs() {
+    const runInstall = (0, core_1.getInput)('run-install', { required: false });
+    console.info('Inputs: run-install is', runInstall);
+    const triplet = (0, core_1.getInput)('triplet', { required: false });
+    console.info('Inputs: triplet is', triplet);
+    const installFeatures = (0, core_1.getInput)('install-features', { required: false });
+    console.info('Inputs: install-features is', installFeatures);
+    const saveCache = (0, core_1.getInput)('save-cache', { required: false });
+    console.info('Inputs: save-cache is', saveCache);
+    const inputs = {
+        runInstall: runInstall === 'true',
+        triplet: triplet,
+        installFeatures: installFeatures.split(/\s+/).filter(Boolean),
+        saveCache: saveCache === 'true'
+    };
+    if (inputs.runInstall && !triplet) {
+        throw new AbortActionError('Triplet must be defined');
+    }
+    return inputs;
+}
+exports.parseInputs = parseInputs;
 function getEnvVariable(name, required = true) {
     let value = process_1.env[name];
     if (value === undefined) {
@@ -57406,23 +57427,6 @@ const fs = __nccwpck_require__(3292);
 const os = __nccwpck_require__(2037);
 const path = __nccwpck_require__(1017);
 const common_1 = __nccwpck_require__(9108);
-function parseInputs() {
-    const runInstall = core.getInput('run-install', { required: false });
-    console.info('Inputs: run-install is', runInstall);
-    const triplet = core.getInput('triplet', { required: false });
-    console.info('Inputs: triplet is', triplet);
-    const installFeatures = core.getInput('install-features', { required: false });
-    console.info('Inputs: install-features is', installFeatures);
-    const inputs = {
-        runInstall: runInstall === 'true',
-        triplet: triplet,
-        installFeatures: installFeatures.split(/\s+/).filter(Boolean),
-    };
-    if (inputs.runInstall && !triplet) {
-        throw new common_1.AbortActionError('Triplet must be defined');
-    }
-    return inputs;
-}
 async function execProcess(process) {
     const exitCode = await new Promise((resolve, reject) => {
         process.on('close', resolve);
@@ -57534,7 +57538,7 @@ async function runVcpkgInstall(inputs) {
     core.endGroup();
 }
 async function main() {
-    const inputs = parseInputs();
+    const inputs = (0, common_1.parseInputs)();
     await setupVcpkg(await extractVcpkgCommit());
     await restoreCache();
     await runVcpkgInstall(inputs);

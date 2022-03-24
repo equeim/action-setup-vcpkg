@@ -1,4 +1,4 @@
-import { exportVariable, setFailed } from '@actions/core';
+import { exportVariable, getInput, setFailed } from '@actions/core';
 import { createHash } from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -7,6 +7,34 @@ import { env } from 'process';
 export const cacheKeyState = 'cacheKey' as const;
 export const latestBinaryPackageHashState = 'latestBinaryPackageHash' as const;
 export const mainStepSucceededState = 'mainStepSucceeded' as const;
+
+export type Inputs = {
+    runInstall: boolean;
+    triplet: string;
+    installFeatures: string[];
+    saveCache: boolean;
+};
+
+export function parseInputs(): Inputs {
+    const runInstall = getInput('run-install', { required: false });
+    console.info('Inputs: run-install is', runInstall);
+    const triplet = getInput('triplet', { required: false });
+    console.info('Inputs: triplet is', triplet);
+    const installFeatures = getInput('install-features', { required: false });
+    console.info('Inputs: install-features is', installFeatures);
+    const saveCache = getInput('save-cache', { required: false });
+    console.info('Inputs: save-cache is', saveCache);
+    const inputs = {
+        runInstall: runInstall === 'true',
+        triplet: triplet,
+        installFeatures: installFeatures.split(/\s+/).filter(Boolean),
+        saveCache: saveCache === 'true'
+    };
+    if (inputs.runInstall && !triplet) {
+        throw new AbortActionError('Triplet must be defined');
+    }
+    return inputs;
+}
 
 export function getEnvVariable(name: string): string
 export function getEnvVariable(name: string, required: true): string
