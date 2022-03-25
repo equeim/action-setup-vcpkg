@@ -2,27 +2,20 @@ import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
 import { AbortActionError, BinaryPackage, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getCacheDir, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain } from './common';
+import { extractBinaryPackageControl } from './extractControl';
 
-
-
-const maximumCacheSize = 3 * 1024 * 1024 * 1024;
 
 function bytesToMibibytes(bytes: number): number {
     return (bytes / (1024.0 * 1024.0));
 }
 
-type BinaryPackages = {
-    packages: BinaryPackage[];
-    totalSize: number;
-}
-
-async function findBinaryPackagesAndComputeTotalSize(): Promise<BinaryPackages> {
+async function findBinaryPackagesAndComputeTotalSize(): Promise<BinaryPackage[]> {
     core.startGroup('Searching packages in binary cache');
     const packages = await findBinaryPackages();
     let totalSize = packages.reduce((prev, cur) => prev + cur.size, 0);
     console.info('Found', packages.length, 'cached packages, total size is', bytesToMibibytes(totalSize), 'MiB');
     core.endGroup();
-    return { packages: packages, totalSize: totalSize };
+    return packages;
 }
 
 function didLatestPackageChange(packages: BinaryPackage[]): boolean {
@@ -40,20 +33,44 @@ function didLatestPackageChange(packages: BinaryPackage[]): boolean {
     return true;
 }
 
-async function removeOldestPackages(cachedPackages: BinaryPackages): Promise<BinaryPackage[]> {
-    let { packages, totalSize } = cachedPackages;
-    if (totalSize <= maximumCacheSize) {
-        return packages;
+function computeIfAbsent<K, V>(map: Map<K, V>, key: K, mappingFunction: (key: K) => V): V {
+    let value = map.get(key);
+    if (value === undefined) {
+        value = mappingFunction(key);
+        map.set(key, value);
     }
-    core.startGroup('Removing old packages')
-    console.info('Cache size is more than', bytesToMibibytes(maximumCacheSize), 'MiB, remove oldest packages');
+    return value;
+}
+
+async function removeOldVersions(packages: BinaryPackage[]) {
+    core.startGroup('Removing old versions of packages');
+    const identifiedPackages = new Map<string, Map<string, BinaryPackage[]>>();
+    for (const pkg of packages) {
+        try {
+            const control = await extractBinaryPackageControl(pkg);
+            const pkgsWithSameName = computeIfAbsent(identifiedPackages, control.packageName, () => {
+                return new Map<string, BinaryPackage[]>()
+            });
+            const pkgsWithSameNameAndArch = computeIfAbsent(pkgsWithSameName, control.architecture, () => { return []; });
+            pkgsWithSameNameAndArch.push(pkg);
+        } catch (error) {
+            console.error('Failed to extract metadata from package', pkg.filePath, error);
+        }
+    }
+    const remainingPackages = new Set(packages);
     const rmPromises: Promise<void>[] = []
-    while (totalSize > maximumCacheSize && packages.length > 0) {
-        const pkg = packages.pop();
-        if (pkg != null) {
-            console.info('Removing', pkg.filePath);
-            rmPromises.push(fs.rm(pkg.filePath));
-            totalSize -= pkg.size;
+    for (const [packageName, pkgsWithSameName] of identifiedPackages) {
+        for (const [architecture, pkgsWithSameNameAndArch] of pkgsWithSameName) {
+            if (pkgsWithSameNameAndArch.length > 1) {
+                console.info('Removing older versions of package', packageName, 'with architecture', architecture, `(latest is ${pkgsWithSameNameAndArch.at(0)?.filePath})`)
+                // Packages are sorted from newest to oldest, remove old ones
+                while (pkgsWithSameNameAndArch.length > 1) {
+                    const pkg = pkgsWithSameNameAndArch.pop()!!;
+                    console.info(' - Removing', pkg.filePath);
+                    rmPromises.push(fs.rm(pkg.filePath));
+                    remainingPackages.delete(pkg);
+                }
+            }
         }
     }
     if (rmPromises.length > 0) {
@@ -63,10 +80,12 @@ async function removeOldestPackages(cachedPackages: BinaryPackages): Promise<Bin
             console.error(error);
             throw new AbortActionError(`Failed to remove packages with error '${errorAsString(error)}'`);
         }
+        let totalSize = [...remainingPackages].reduce((prev, cur) => prev + cur.size, 0);
+        console.info('New packages count is', remainingPackages.size, 'and total size is', bytesToMibibytes(totalSize), 'MiB');
+    } else {
+        console.info('Did not remove any packages');
     }
-    console.info('New packages count is', packages.length, 'and total size is', bytesToMibibytes(totalSize), 'MiB');
     core.endGroup();
-    return packages;
 }
 
 async function saveCache() {
@@ -97,19 +116,15 @@ async function main() {
         return;
     }
     const packages = await findBinaryPackagesAndComputeTotalSize();
-    if (packages.packages.length == 0) {
+    if (packages.length == 0) {
         console.info('No binary packages, skip saving cache');
         return;
     }
-    if (!didLatestPackageChange(packages.packages)) {
+    if (!didLatestPackageChange(packages)) {
         console.info('Latest binary package did not change, skip saving cache');
         return;
     }
-    const newPackages = await removeOldestPackages(packages);
-    if (newPackages.length == 0) {
-        console.info('All binary packages were removed, skip saving cache');
-        return;
-    }
+    await removeOldVersions(packages);
     await saveCache();
 }
 
