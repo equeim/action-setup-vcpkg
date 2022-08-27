@@ -1,7 +1,7 @@
 import * as readline from 'readline';
 import { Readable } from 'stream';
 import * as yauzl from 'yauzl';
-import { BinaryPackage } from './common';
+import { BinaryPackage } from './common.js';
 
 const controlFileName = 'CONTROL' as const;
 const packageNameKey = 'Package' as const;

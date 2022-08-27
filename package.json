@@ -1,5 +1,6 @@
 {
   "name": "action-setup-vcpkg",
+  "type": "module",
   "version": "1",
   "description": "",
   "main": "dist/main/index.js",

@@ -1,8 +1,8 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
-import { AbortActionError, BinaryPackage, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getCacheDir, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain } from './common';
-import { extractBinaryPackageControl } from './extractControl';
+import { AbortActionError, BinaryPackage, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getCacheDir, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { extractBinaryPackageControl } from './extractControl.js';
 
 
 function bytesToMibibytes(bytes: number): number {
@@ -128,4 +128,4 @@ async function main() {
     await saveCache();
 }
 
-runMain(main);
+await runMain(main);

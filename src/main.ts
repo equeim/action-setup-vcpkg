@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AbortActionError, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getEnvVariable, Inputs, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain, setCacheDir } from './common';
+import { AbortActionError, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getEnvVariable, Inputs, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain, setCacheDir } from './common.js';
 
 
 async function execProcess(process: ChildProcess) {
@@ -128,4 +128,4 @@ async function main() {
     core.saveState(mainStepSucceededState, 'true');
 }
 
-runMain(main);
+await runMain(main);
