@@ -12,6 +12,18 @@ inputs:
     description: 'Vcpkg manifest features'
     required: false
     default: ''
+  install-clean-buildtrees:
+    description: 'Clean buildtrees after building each package'
+    required: false
+    default: 'true'
+  install-clean-packages:
+    description: 'Clean packages after building each package'
+    required: false
+    default: 'true'
+  install-clean-downloads:
+    description: 'Clean downloads after building each package'
+    required: false
+    default: 'false'
   save-cache:
     description: 'Enable cache saving'
     required: false

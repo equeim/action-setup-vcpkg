@@ -12,6 +12,9 @@ export type Inputs = {
     runInstall: boolean;
     triplet: string;
     installFeatures: string[];
+    installCleanBuildtrees: boolean;
+    installCleanPackages: boolean;
+    installCleanDownloads: boolean;
     saveCache: boolean;
 };
 
@@ -22,12 +25,21 @@ export function parseInputs(): Inputs {
     console.info('Inputs: triplet is', triplet);
     const installFeatures = getInput('install-features', { required: false });
     console.info('Inputs: install-features is', installFeatures);
+    const installCleanBuildtrees = getInput('install-clean-buildtrees', { required: false });
+    console.info('Inputs: install-clean-buildtrees is', installCleanBuildtrees);
+    const installCleanPackages = getInput('install-clean-packages', { required: false });
+    console.info('Inputs: install-clean-packages is', installCleanPackages);
+    const installCleanDownloads = getInput('install-clean-downloads', { required: false });
+    console.info('Inputs: install-clean-downloads is', installCleanDownloads);
     const saveCache = getInput('save-cache', { required: false });
     console.info('Inputs: save-cache is', saveCache);
     const inputs = {
         runInstall: runInstall === 'true',
         triplet: triplet,
         installFeatures: installFeatures.split(/\s+/).filter(Boolean),
+        installCleanBuildtrees: installCleanBuildtrees === 'true',
+        installCleanPackages: installCleanPackages === 'true',
+        installCleanDownloads: installCleanDownloads === 'true',
         saveCache: saveCache === 'true'
     };
     if (inputs.runInstall && !triplet) {

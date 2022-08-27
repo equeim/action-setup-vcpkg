@@ -112,7 +112,16 @@ async function runVcpkgInstall(inputs: Inputs) {
         return;
     }
     core.startGroup('Run vcpkg install');
-    const args = ['install', '--clean-after-build', `--triplet=${inputs.triplet}`, `--host-triplet=${inputs.triplet}`]
+    const args = ['install', `--triplet=${inputs.triplet}`, `--host-triplet=${inputs.triplet}`]
+    if (inputs.installCleanBuildtrees) {
+        args.push('--clean-buildtrees-after-build')
+    }
+    if (inputs.installCleanPackages) {
+        args.push('--clean-packages-after-build')
+    }
+    if (inputs.installCleanDownloads) {
+        args.push('--clean-downloads-after-build')
+    }
     for (const feature of inputs.installFeatures) {
         args.push(`--x-feature=${feature}`)
     }
