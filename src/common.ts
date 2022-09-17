@@ -1,4 +1,4 @@
-import { exportVariable, getInput, setFailed } from '@actions/core';
+import { exportVariable, getInput, InputOptions, setFailed } from '@actions/core';
 import { createHash } from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -9,6 +9,7 @@ export const latestBinaryPackageHashState = 'latestBinaryPackageHash' as const;
 export const mainStepSucceededState = 'mainStepSucceeded' as const;
 
 export type Inputs = {
+    vcpkgRoot: string;
     runInstall: boolean;
     triplet: string;
     installFeatures: string[];
@@ -18,22 +19,23 @@ export type Inputs = {
     saveCache: boolean;
 };
 
+function getInputVerbose(name: string, inputOptions: InputOptions): string {
+    const value = getInput(name, inputOptions)
+    console.info(`Inputs: ${name} is ${value}`);
+    return value;
+}
+
 export function parseInputs(): Inputs {
-    const runInstall = getInput('run-install', { required: false });
-    console.info('Inputs: run-install is', runInstall);
-    const triplet = getInput('triplet', { required: false });
-    console.info('Inputs: triplet is', triplet);
-    const installFeatures = getInput('install-features', { required: false });
-    console.info('Inputs: install-features is', installFeatures);
-    const installCleanBuildtrees = getInput('install-clean-buildtrees', { required: false });
-    console.info('Inputs: install-clean-buildtrees is', installCleanBuildtrees);
-    const installCleanPackages = getInput('install-clean-packages', { required: false });
-    console.info('Inputs: install-clean-packages is', installCleanPackages);
-    const installCleanDownloads = getInput('install-clean-downloads', { required: false });
-    console.info('Inputs: install-clean-downloads is', installCleanDownloads);
-    const saveCache = getInput('save-cache', { required: false });
-    console.info('Inputs: save-cache is', saveCache);
+    const vcpkgRoot = getInputVerbose('vcpkg-root', { required: false });
+    const runInstall = getInputVerbose('run-install', { required: false });
+    const triplet = getInputVerbose('triplet', { required: false });
+    const installFeatures = getInputVerbose('install-features', { required: false });
+    const installCleanBuildtrees = getInputVerbose('install-clean-buildtrees', { required: false });
+    const installCleanPackages = getInputVerbose('install-clean-packages', { required: false });
+    const installCleanDownloads = getInputVerbose('install-clean-downloads', { required: false });
+    const saveCache = getInputVerbose('save-cache', { required: false });
     const inputs = {
+        vcpkgRoot: vcpkgRoot,
         runInstall: runInstall === 'true',
         triplet: triplet,
         installFeatures: installFeatures.split(/\s+/).filter(Boolean),

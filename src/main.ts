@@ -46,17 +46,44 @@ async function extractVcpkgCommit(): Promise<string> {
     }
 }
 
-async function setupVcpkg(commit: string) {
+async function setupVcpkg(commit: string, inputs: Inputs): Promise<string> {
     core.startGroup('Set up vcpkg');
-    await execCommand('git', ['clone', '--no-checkout', 'https://github.com/microsoft/vcpkg.git']);
-    core.exportVariable('VCPKG_ROOT', path.join(process.cwd(), 'vcpkg'));
-    await execCommand('git', ['-C', 'vcpkg', 'checkout', commit]);
+
+    let vcpkgRoot: string;
+    if (inputs.vcpkgRoot) {
+        vcpkgRoot = inputs.vcpkgRoot;
+    } else {
+        vcpkgRoot = 'vcpkg';
+    }
+    vcpkgRoot = path.resolve(vcpkgRoot);
+    core.exportVariable('VCPKG_ROOT', vcpkgRoot);
+    console.info('Vcpkg root is', vcpkgRoot);
+
+    let checkoutExistingDirectory: boolean
+    try {
+        const stats = await fs.stat(vcpkgRoot);
+        checkoutExistingDirectory = stats.isDirectory()
+    } catch (error) {
+        checkoutExistingDirectory = false
+    }
+
+    if (checkoutExistingDirectory) {
+        await execCommand('git', ['-C', vcpkgRoot, 'fetch']);
+        await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
+    } else {
+        await execCommand('git', ['clone', '--no-checkout', 'https://github.com/microsoft/vcpkg.git', vcpkgRoot]);
+        await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
+    }
+
     if (os.platform() == 'win32') {
         await execCommand('.\\vcpkg\\bootstrap-vcpkg.bat', ['-disableMetrics'], true);
     } else {
         await execCommand('./vcpkg/bootstrap-vcpkg.sh', ['-disableMetrics'], true);
     }
+
     core.endGroup();
+
+    return vcpkgRoot;
 }
 
 async function restoreCache() {
@@ -107,7 +134,7 @@ async function restoreCache() {
     core.endGroup();
 }
 
-async function runVcpkgInstall(inputs: Inputs) {
+async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
     if (!inputs.runInstall) {
         return;
     }
@@ -125,15 +152,15 @@ async function runVcpkgInstall(inputs: Inputs) {
     for (const feature of inputs.installFeatures) {
         args.push(`--x-feature=${feature}`)
     }
-    await execCommand(path.join(process.cwd(), 'vcpkg', 'vcpkg'), args);
+    await execCommand(path.join(vcpkgRoot, 'vcpkg'), args);
     core.endGroup();
 }
 
 async function main() {
     const inputs = parseInputs();
-    await setupVcpkg(await extractVcpkgCommit());
+    const vcpkgRoot = await setupVcpkg(await extractVcpkgCommit(), inputs);
     await restoreCache();
-    await runVcpkgInstall(inputs);
+    await runVcpkgInstall(inputs, vcpkgRoot);
     core.saveState(mainStepSucceededState, 'true');
 }
 
