@@ -75,11 +75,13 @@ async function setupVcpkg(commit: string, inputs: Inputs): Promise<string> {
         await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
     }
 
+    let bootstrapScript: string;
     if (os.platform() == 'win32') {
-        await execCommand('.\\vcpkg\\bootstrap-vcpkg.bat', ['-disableMetrics'], true);
+        bootstrapScript = 'bootstrap-vcpkg.bat';
     } else {
-        await execCommand('./vcpkg/bootstrap-vcpkg.sh', ['-disableMetrics'], true);
+        bootstrapScript = 'bootstrap-vcpkg.sh';
     }
+    await execCommand(path.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], true);
 
     core.endGroup();
 
