@@ -64835,12 +64835,14 @@ async function setupVcpkg(commit, inputs) {
         await execCommand('git', ['clone', '--no-checkout', 'https://github.com/microsoft/vcpkg.git', vcpkgRoot]);
         await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
     }
+    let bootstrapScript;
     if (os__WEBPACK_IMPORTED_MODULE_5__.platform() == 'win32') {
-        await execCommand('.\\vcpkg\\bootstrap-vcpkg.bat', ['-disableMetrics'], true);
+        bootstrapScript = 'bootstrap-vcpkg.bat';
     }
     else {
-        await execCommand('./vcpkg/bootstrap-vcpkg.sh', ['-disableMetrics'], true);
+        bootstrapScript = 'bootstrap-vcpkg.sh';
     }
+    await execCommand(path__WEBPACK_IMPORTED_MODULE_6__.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], true);
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
     return vcpkgRoot;
 }
