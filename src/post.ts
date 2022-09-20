@@ -1,7 +1,7 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
-import { AbortActionError, BinaryPackage, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getCacheDir, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, BinaryPackage, cacheKeyState, computeHashOfBinaryPackage, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackages, getEnvVariable, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain } from './common.js';
 import { extractBinaryPackageControl } from './extractControl.js';
 
 
@@ -96,7 +96,7 @@ async function saveCache() {
     }
     console.info('Saving cache with key', key);
     try {
-        await cache.saveCache([getCacheDir()], key);
+        await cache.saveCache([getEnvVariable(ENV_VCPKG_BINARY_CACHE)], key);
     } catch (error) {
         console.error(error);
         core.error(`Failed to save cache with error ${errorAsString(error)}`);

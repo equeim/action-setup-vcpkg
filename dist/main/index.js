@@ -64596,6 +64596,8 @@ module.exports.implForWrapper = function (wrapper) {
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
   "oc": () => (/* binding */ AbortActionError),
+  "Eh": () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
+  "YV": () => (/* binding */ ENV_VCPKG_ROOT),
   "GF": () => (/* binding */ cacheKeyState),
   "vK": () => (/* binding */ computeHashOfBinaryPackage),
   "ZT": () => (/* binding */ errorAsString),
@@ -64604,11 +64606,8 @@ __nccwpck_require__.d(__webpack_exports__, {
   "c3": () => (/* binding */ latestBinaryPackageHashState),
   "ch": () => (/* binding */ mainStepSucceededState),
   "_$": () => (/* binding */ parseInputs),
-  "Aq": () => (/* binding */ runMain),
-  "T0": () => (/* binding */ setCacheDir)
+  "Aq": () => (/* binding */ runMain)
 });
-
-// UNUSED EXPORTS: getCacheDir
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
@@ -64674,12 +64673,8 @@ function getEnvVariable(name, required = true) {
     }
     return value;
 }
-function getCacheDir() {
-    return getEnvVariable('VCPKG_DEFAULT_BINARY_CACHE');
-}
-function setCacheDir(cacheDir) {
-    (0,core.exportVariable)('VCPKG_DEFAULT_BINARY_CACHE', cacheDir);
-}
+const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
+const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 async function findBinaryPackagesInDir(dirPath, packages) {
     const dir = await promises_.opendir(dirPath);
     for await (const dirent of dir) {
@@ -64695,7 +64690,7 @@ async function findBinaryPackagesInDir(dirPath, packages) {
 }
 async function findBinaryPackages() {
     const packages = [];
-    await findBinaryPackagesInDir(getCacheDir(), packages);
+    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), packages);
     // Sort by mtime in descending order, so that oldest files are at the end
     packages.sort((a, b) => {
         return b.mtimeMs - a.mtimeMs;
@@ -64809,16 +64804,27 @@ async function extractVcpkgCommit() {
 }
 async function setupVcpkg(commit, inputs) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Set up vcpkg');
-    let vcpkgRoot;
-    if (inputs.vcpkgRoot) {
-        vcpkgRoot = inputs.vcpkgRoot;
+    let fromEnv = false;
+    let vcpkgRoot = inputs.vcpkgRoot;
+    if (vcpkgRoot) {
+        console.info('Using vcpkg root path from action inputs');
     }
     else {
-        vcpkgRoot = 'vcpkg';
+        vcpkgRoot = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV, false);
+        if (vcpkgRoot) {
+            console.info(`Using vcpkg root path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV} environment variable`);
+            fromEnv = true;
+        }
+        else {
+            console.info('Using default vcpkg root path');
+            vcpkgRoot = 'vcpkg';
+        }
     }
     vcpkgRoot = path__WEBPACK_IMPORTED_MODULE_6__.resolve(vcpkgRoot);
-    _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable('VCPKG_ROOT', vcpkgRoot);
-    console.info('Vcpkg root is', vcpkgRoot);
+    console.info('Vcpkg root path is', vcpkgRoot);
+    if (!fromEnv) {
+        _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV, vcpkgRoot);
+    }
     let checkoutExistingDirectory;
     try {
         const stats = await fs_promises__WEBPACK_IMPORTED_MODULE_4__.stat(vcpkgRoot);
@@ -64848,7 +64854,21 @@ async function setupVcpkg(commit, inputs) {
 }
 async function restoreCache() {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Restore cache');
-    const cacheDir = path__WEBPACK_IMPORTED_MODULE_6__.join(process.cwd(), 'vcpkg_binary_cache');
+    let fromEnv = false;
+    let cacheDir = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_BINARY_CACHE */ .Eh, false);
+    if (cacheDir) {
+        console.info(`Using binary cache path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_BINARY_CACHE */ .Eh} environment variable`);
+        fromEnv = true;
+    }
+    else {
+        console.info('Using default binary cache path');
+        cacheDir = 'vcpkg_binary_cache';
+    }
+    cacheDir = path__WEBPACK_IMPORTED_MODULE_6__.resolve(cacheDir);
+    console.info('Vcpkg binary cache path is', cacheDir);
+    if (!fromEnv) {
+        _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_BINARY_CACHE */ .Eh, cacheDir);
+    }
     try {
         await fs_promises__WEBPACK_IMPORTED_MODULE_4__.mkdir(cacheDir, { recursive: true });
     }
@@ -64856,7 +64876,6 @@ async function restoreCache() {
         console.error(error);
         throw new _common_js__WEBPACK_IMPORTED_MODULE_7__/* .AbortActionError */ .oc(`Failed to create cache directory with error ${(0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .errorAsString */ .ZT)(error)}`);
     }
-    (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .setCacheDir */ .T0)(cacheDir);
     console.info('Vcpkg binary cache directory is', cacheDir);
     const runnerOs = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .j$)('RUNNER_OS');
     /**

@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AbortActionError, cacheKeyState, computeHashOfBinaryPackage, errorAsString, findBinaryPackages, getEnvVariable, Inputs, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain, setCacheDir } from './common.js';
+import { AbortActionError, cacheKeyState, computeHashOfBinaryPackage, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_ROOT, errorAsString, findBinaryPackages, getEnvVariable, Inputs, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain } from './common.js';
 
 
 async function execProcess(process: ChildProcess) {
@@ -49,15 +49,25 @@ async function extractVcpkgCommit(): Promise<string> {
 async function setupVcpkg(commit: string, inputs: Inputs): Promise<string> {
     core.startGroup('Set up vcpkg');
 
-    let vcpkgRoot: string;
-    if (inputs.vcpkgRoot) {
-        vcpkgRoot = inputs.vcpkgRoot;
+    let fromEnv = false;
+    let vcpkgRoot: string | undefined = inputs.vcpkgRoot;
+    if (vcpkgRoot) {
+        console.info('Using vcpkg root path from action inputs');
     } else {
-        vcpkgRoot = 'vcpkg';
+        vcpkgRoot = getEnvVariable(ENV_VCPKG_ROOT, false);
+        if (vcpkgRoot) {
+            console.info(`Using vcpkg root path from ${ENV_VCPKG_ROOT} environment variable`);
+            fromEnv = true;
+        } else {
+            console.info('Using default vcpkg root path');
+            vcpkgRoot = 'vcpkg';
+        }
     }
     vcpkgRoot = path.resolve(vcpkgRoot);
-    core.exportVariable('VCPKG_ROOT', vcpkgRoot);
-    console.info('Vcpkg root is', vcpkgRoot);
+    console.info('Vcpkg root path is', vcpkgRoot);
+    if (!fromEnv) {
+        core.exportVariable(ENV_VCPKG_ROOT, vcpkgRoot);
+    }
 
     let checkoutExistingDirectory: boolean
     try {
@@ -91,14 +101,26 @@ async function setupVcpkg(commit: string, inputs: Inputs): Promise<string> {
 async function restoreCache() {
     core.startGroup('Restore cache');
 
-    const cacheDir = path.join(process.cwd(), 'vcpkg_binary_cache');
+    let fromEnv = false;
+    let cacheDir = getEnvVariable(ENV_VCPKG_BINARY_CACHE, false);
+    if (cacheDir) {
+        console.info(`Using binary cache path from ${ENV_VCPKG_BINARY_CACHE} environment variable`);
+        fromEnv = true;
+    } else {
+        console.info('Using default binary cache path');
+        cacheDir = 'vcpkg_binary_cache';
+    }
+    cacheDir = path.resolve(cacheDir);
+    console.info('Vcpkg binary cache path is', cacheDir);
+    if (!fromEnv) {
+        core.exportVariable(ENV_VCPKG_BINARY_CACHE, cacheDir);
+    }
     try {
         await fs.mkdir(cacheDir, { recursive: true });
     } catch (error) {
         console.error(error);
         throw new AbortActionError(`Failed to create cache directory with error ${errorAsString(error)}`);
     }
-    setCacheDir(cacheDir);
     console.info('Vcpkg binary cache directory is', cacheDir);
 
     const runnerOs = getEnvVariable('RUNNER_OS');

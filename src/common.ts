@@ -1,4 +1,4 @@
-import { exportVariable, getInput, InputOptions, setFailed } from '@actions/core';
+import { getInput, InputOptions, setFailed } from '@actions/core';
 import { createHash } from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -69,13 +69,8 @@ export function getEnvVariable(name: string, required: boolean = true): string |
     return value;
 }
 
-export function getCacheDir(): string {
-    return getEnvVariable('VCPKG_DEFAULT_BINARY_CACHE');
-}
-
-export function setCacheDir(cacheDir: string) {
-    exportVariable('VCPKG_DEFAULT_BINARY_CACHE', cacheDir);
-}
+export const ENV_VCPKG_ROOT = 'VCPKG_ROOT' as const
+export const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE' as const
 
 export type BinaryPackage = {
     filePath: string,
@@ -98,7 +93,7 @@ async function findBinaryPackagesInDir(dirPath: string, packages: BinaryPackage[
 
 export async function findBinaryPackages(): Promise<BinaryPackage[]> {
     const packages: BinaryPackage[] = [];
-    await findBinaryPackagesInDir(getCacheDir(), packages);
+    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), packages);
     // Sort by mtime in descending order, so that oldest files are at the end
     packages.sort((a, b) => {
         return b.mtimeMs - a.mtimeMs;

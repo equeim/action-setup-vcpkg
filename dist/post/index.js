@@ -65883,18 +65883,19 @@ function defaultCallback(err) {
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
   "oc": () => (/* binding */ AbortActionError),
+  "Eh": () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
   "GF": () => (/* binding */ cacheKeyState),
   "vK": () => (/* binding */ computeHashOfBinaryPackage),
   "ZT": () => (/* binding */ errorAsString),
   "PL": () => (/* binding */ findBinaryPackages),
-  "N5": () => (/* binding */ getCacheDir),
+  "j$": () => (/* binding */ getEnvVariable),
   "c3": () => (/* binding */ latestBinaryPackageHashState),
   "ch": () => (/* binding */ mainStepSucceededState),
   "_$": () => (/* binding */ parseInputs),
   "Aq": () => (/* binding */ runMain)
 });
 
-// UNUSED EXPORTS: getEnvVariable, setCacheDir
+// UNUSED EXPORTS: ENV_VCPKG_ROOT
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
@@ -65960,12 +65961,8 @@ function getEnvVariable(name, required = true) {
     }
     return value;
 }
-function getCacheDir() {
-    return getEnvVariable('VCPKG_DEFAULT_BINARY_CACHE');
-}
-function setCacheDir(cacheDir) {
-    exportVariable('VCPKG_DEFAULT_BINARY_CACHE', cacheDir);
-}
+const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
+const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 async function findBinaryPackagesInDir(dirPath, packages) {
     const dir = await promises_.opendir(dirPath);
     for await (const dirent of dir) {
@@ -65981,7 +65978,7 @@ async function findBinaryPackagesInDir(dirPath, packages) {
 }
 async function findBinaryPackages() {
     const packages = [];
-    await findBinaryPackagesInDir(getCacheDir(), packages);
+    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), packages);
     // Sort by mtime in descending order, so that oldest files are at the end
     packages.sort((a, b) => {
         return b.mtimeMs - a.mtimeMs;
@@ -66239,7 +66236,7 @@ async function saveCache() {
     }
     console.info('Saving cache with key', key);
     try {
-        await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.saveCache([(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .getCacheDir */ .N5)()], key);
+        await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.saveCache([(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_3__/* .ENV_VCPKG_BINARY_CACHE */ .Eh)], key);
     }
     catch (error) {
         console.error(error);
