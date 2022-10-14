@@ -5,11 +5,11 @@ __metadata:
   version: 6
   cacheKey: 8
 
-"@actions/cache@npm:^3.0.4":
-  version: 3.0.4
-  resolution: "@actions/cache@npm:3.0.4"
+"@actions/cache@npm:^3.0.5":
+  version: 3.0.5
+  resolution: "@actions/cache@npm:3.0.5"
   dependencies:
-    "@actions/core": ^1.2.6
+    "@actions/core": ^1.10.0
     "@actions/exec": ^1.0.1
     "@actions/glob": ^0.1.0
     "@actions/http-client": ^2.0.1
@@ -18,11 +18,21 @@ __metadata:
     "@azure/storage-blob": ^12.8.0
     semver: ^6.1.0
     uuid: ^3.3.3
-  checksum: 6aad87b630dd0c84ee048bef1d55d8296aa56d6bd377e7e570d2bc4877fe10db26b9197065e0bbd1ad82c039b5b5ff488ed650332330d3d2e4e060392970247f
+  checksum: a31b3ac96baaa1da06693d88e7e01b69a0e6cb52b079f07e771756ac371f95cf496cb8272b539cb4dc09a29b50382eae584bd88e02a14f6d29c7b712ace7fd24
   languageName: node
   linkType: hard
 
-"@actions/core@npm:^1.2.6, @actions/core@npm:^1.9.1":
+"@actions/core@npm:^1.10.0":
+  version: 1.10.0
+  resolution: "@actions/core@npm:1.10.0"
+  dependencies:
+    "@actions/http-client": ^2.0.1
+    uuid: ^8.3.2
+  checksum: 0a75621e007ab20d887434cdd165f0b9036f14c22252a2faed33543d8b9d04ec95d823e69ca636a25245574e4585d73e1e9e47a845339553c664f9f2c9614669
+  languageName: node
+  linkType: hard
+
+"@actions/core@npm:^1.2.6":
   version: 1.9.1
   resolution: "@actions/core@npm:1.9.1"
   dependencies:
@@ -241,10 +251,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*, @types/node@npm:^18.7.18":
+"@types/node@npm:*":
   version: 18.7.18
   resolution: "@types/node@npm:18.7.18"
   checksum: 8aec61f0f96e2a69ce51f1f40f949ca578bbb4fe05d7c0b8ce3aeeb848e90f755837f17f6ac132ca404d974fe9b2974150ad3b4984fc9dc7c3ceddb10bae0167
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:^18.8.5":
+  version: 18.8.5
+  resolution: "@types/node@npm:18.8.5"
+  checksum: f7d896f54743178e64c534c6da16f582505acf18904ecd0ee8541cb4bc1d429ba514e7ecfd5145221b71adbd6ae1ff72df082f667e56d056fcd1a719df948e08
   languageName: node
   linkType: hard
 
@@ -297,12 +314,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "action-setup-vcpkg@workspace:."
   dependencies:
-    "@actions/cache": ^3.0.4
-    "@actions/core": ^1.9.1
-    "@types/node": ^18.7.18
+    "@actions/cache": ^3.0.5
+    "@actions/core": ^1.10.0
+    "@types/node": ^18.8.5
     "@types/yauzl": ^2.10.0
     "@vercel/ncc": ^0.34.0
-    typescript: ^4.8.3
+    typescript: ^4.8.4
     yarn-upgrade-all: ^0.7.1
     yauzl: ^2.10.0
   languageName: unknown
@@ -1315,23 +1332,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^4.8.3":
-  version: 4.8.3
-  resolution: "typescript@npm:4.8.3"
+"typescript@npm:^4.8.4":
+  version: 4.8.4
+  resolution: "typescript@npm:4.8.4"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 8286a5edcaf3d68e65c451aa1e7150ad1cf53ee0813c07ec35b7abdfdb10f355ecaa13c6a226a694ae7a67785fd7eeebf89f845da0b4f7e4a35561ddc459aba0
+  checksum: 3e4f061658e0c8f36c820802fa809e0fd812b85687a9a2f5430bc3d0368e37d1c9605c3ce9b39df9a05af2ece67b1d844f9f6ea8ff42819f13bcb80f85629af0
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@^4.8.3#~builtin<compat/typescript>":
-  version: 4.8.3
-  resolution: "typescript@patch:typescript@npm%3A4.8.3#~builtin<compat/typescript>::version=4.8.3&hash=a1c5e5"
+"typescript@patch:typescript@^4.8.4#~builtin<compat/typescript>":
+  version: 4.8.4
+  resolution: "typescript@patch:typescript@npm%3A4.8.4#~builtin<compat/typescript>::version=4.8.4&hash=a1c5e5"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 2222d2382fb3146089b1d27ce2b55e9d1f99cc64118f1aba75809b693b856c5d3c324f052f60c75b577947fc538bc1c27bad0eb76cbdba9a63a253489504ba7e
+  checksum: 563a0ef47abae6df27a9a3ab38f75fc681f633ccf1a3502b1108e252e187787893de689220f4544aaf95a371a4eb3141e4a337deb9895de5ac3c1ca76430e5f0
   languageName: node
   linkType: hard
 
