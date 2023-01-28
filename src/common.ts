@@ -11,16 +11,18 @@ export const mainStepSucceededState = 'mainStepSucceeded' as const;
 export type Inputs = {
     vcpkgRoot: string;
     runInstall: boolean;
+    installRoot: string;
     triplet: string;
     installFeatures: string[];
     installCleanBuildtrees: boolean;
     installCleanPackages: boolean;
     installCleanDownloads: boolean;
+    binaryCachePath: string;
     saveCache: boolean;
 };
 
 function getInputVerbose(name: string, inputOptions: InputOptions): string {
-    const value = getInput(name, inputOptions)
+    const value = getInput(name, inputOptions);
     console.info(`Inputs: ${name} is ${value}`);
     return value;
 }
@@ -28,20 +30,24 @@ function getInputVerbose(name: string, inputOptions: InputOptions): string {
 export function parseInputs(): Inputs {
     const vcpkgRoot = getInputVerbose('vcpkg-root', { required: false });
     const runInstall = getInputVerbose('run-install', { required: false });
+    const installRoot = getInputVerbose('install-root', { required: false });
     const triplet = getInputVerbose('triplet', { required: false });
     const installFeatures = getInputVerbose('install-features', { required: false });
     const installCleanBuildtrees = getInputVerbose('install-clean-buildtrees', { required: false });
     const installCleanPackages = getInputVerbose('install-clean-packages', { required: false });
     const installCleanDownloads = getInputVerbose('install-clean-downloads', { required: false });
+    const binaryCachePath = getInputVerbose('binary-cache-path', { required: false });
     const saveCache = getInputVerbose('save-cache', { required: false });
     const inputs = {
         vcpkgRoot: vcpkgRoot,
         runInstall: runInstall === 'true',
+        installRoot: installRoot,
         triplet: triplet,
         installFeatures: installFeatures.split(/\s+/).filter(Boolean),
         installCleanBuildtrees: installCleanBuildtrees === 'true',
         installCleanPackages: installCleanPackages === 'true',
         installCleanDownloads: installCleanDownloads === 'true',
+        binaryCachePath: binaryCachePath,
         saveCache: saveCache === 'true'
     };
     if (inputs.runInstall && !triplet) {
@@ -50,9 +56,9 @@ export function parseInputs(): Inputs {
     return inputs;
 }
 
-export function getEnvVariable(name: string): string
-export function getEnvVariable(name: string, required: true): string
-export function getEnvVariable(name: string, required: false): string | undefined
+export function getEnvVariable(name: string): string;
+export function getEnvVariable(name: string, required: true): string;
+export function getEnvVariable(name: string, required: false): string | undefined;
 export function getEnvVariable(name: string, required: boolean = true): string | undefined {
     let value = env[name];
     if (value === undefined) {
@@ -69,13 +75,13 @@ export function getEnvVariable(name: string, required: boolean = true): string |
     return value;
 }
 
-export const ENV_VCPKG_ROOT = 'VCPKG_ROOT' as const
-export const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE' as const
+export const ENV_VCPKG_ROOT = 'VCPKG_ROOT' as const;
+export const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE' as const;
 
 export type BinaryPackage = {
-    filePath: string,
-    size: number,
-    mtimeMs: number
+    filePath: string;
+    size: number;
+    mtimeMs: number;
 };
 
 async function findBinaryPackagesInDir(dirPath: string, packages: BinaryPackage[]) {

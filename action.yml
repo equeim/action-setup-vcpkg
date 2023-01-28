@@ -1,13 +1,17 @@
 name: 'Set up vcpkg'
 inputs:
   vcpkg-root:
-    description: Directory where vcpkg will be installed
+    description: Vcpkg root directory
     required: false
     default: ''
   run-install:
     description: Run vcpkg install command
     required: false
     default: 'false'
+  install-root:
+    description: Vcpkg install root directory
+    required: false
+    default: ''
   triplet:
     description: 'Vcpkg triplet (required when run-install is true)'
     required: false
@@ -28,6 +32,10 @@ inputs:
     description: 'Clean downloads after building each package'
     required: false
     default: 'false'
+  binary-cache-path:
+    description: 'Vcpkg binary cache path'
+    required: false
+    default: ''
   save-cache:
     description: 'Enable cache saving'
     required: false

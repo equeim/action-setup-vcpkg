@@ -69,12 +69,12 @@ async function setupVcpkg(commit: string, inputs: Inputs): Promise<string> {
         core.exportVariable(ENV_VCPKG_ROOT, vcpkgRoot);
     }
 
-    let checkoutExistingDirectory: boolean
+    let checkoutExistingDirectory: boolean;
     try {
         const stats = await fs.stat(vcpkgRoot);
-        checkoutExistingDirectory = stats.isDirectory()
+        checkoutExistingDirectory = stats.isDirectory();
     } catch (error) {
-        checkoutExistingDirectory = false
+        checkoutExistingDirectory = false;
     }
 
     if (checkoutExistingDirectory) {
@@ -98,17 +98,22 @@ async function setupVcpkg(commit: string, inputs: Inputs): Promise<string> {
     return vcpkgRoot;
 }
 
-async function restoreCache() {
+async function restoreCache(inputs: Inputs) {
     core.startGroup('Restore cache');
 
     let fromEnv = false;
-    let cacheDir = getEnvVariable(ENV_VCPKG_BINARY_CACHE, false);
+    let cacheDir: string | undefined = inputs.binaryCachePath;
     if (cacheDir) {
-        console.info(`Using binary cache path from ${ENV_VCPKG_BINARY_CACHE} environment variable`);
-        fromEnv = true;
+        console.info('Using binary cache path from action inputs');
     } else {
-        console.info('Using default binary cache path');
-        cacheDir = 'vcpkg_binary_cache';
+        cacheDir = getEnvVariable(ENV_VCPKG_BINARY_CACHE, false);
+        if (cacheDir) {
+            console.info(`Using binary cache path from ${ENV_VCPKG_BINARY_CACHE} environment variable`);
+            fromEnv = true;
+        } else {
+            console.info('Using default binary cache path');
+            cacheDir = 'vcpkg_binary_cache';
+        }
     }
     cacheDir = path.resolve(cacheDir);
     console.info('Vcpkg binary cache path is', cacheDir);
@@ -121,7 +126,6 @@ async function restoreCache() {
         console.error(error);
         throw new AbortActionError(`Failed to create cache directory with error ${errorAsString(error)}`);
     }
-    console.info('Vcpkg binary cache directory is', cacheDir);
 
     const runnerOs = getEnvVariable('RUNNER_OS');
     /**
@@ -163,18 +167,27 @@ async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
         return;
     }
     core.startGroup('Run vcpkg install');
-    const args = ['install', `--triplet=${inputs.triplet}`, `--host-triplet=${inputs.triplet}`]
+    let installRoot = inputs.installRoot;
+    if (installRoot) {
+        console.info('Using vcpkg root path from action inputs');
+    } else {
+        console.info('Using default vcpkg install root path');
+        installRoot = 'vcpkg_installed';
+    }
+    installRoot = path.resolve(installRoot);
+    console.info('Vcpkg install root path is', installRoot);
+    const args = ['install', `--triplet=${inputs.triplet}`, `--host-triplet=${inputs.triplet}`, `--x-install-root=${installRoot}`];
     if (inputs.installCleanBuildtrees) {
-        args.push('--clean-buildtrees-after-build')
+        args.push('--clean-buildtrees-after-build');
     }
     if (inputs.installCleanPackages) {
-        args.push('--clean-packages-after-build')
+        args.push('--clean-packages-after-build');
     }
     if (inputs.installCleanDownloads) {
-        args.push('--clean-downloads-after-build')
+        args.push('--clean-downloads-after-build');
     }
     for (const feature of inputs.installFeatures) {
-        args.push(`--x-feature=${feature}`)
+        args.push(`--x-feature=${feature}`);
     }
     await execCommand(path.join(vcpkgRoot, 'vcpkg'), args);
     core.endGroup();
@@ -183,7 +196,7 @@ async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
 async function main() {
     const inputs = parseInputs();
     const vcpkgRoot = await setupVcpkg(await extractVcpkgCommit(), inputs);
-    await restoreCache();
+    await restoreCache(inputs);
     await runVcpkgInstall(inputs, vcpkgRoot);
     core.saveState(mainStepSucceededState, 'true');
 }
