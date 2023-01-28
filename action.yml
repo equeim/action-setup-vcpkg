@@ -16,6 +16,10 @@ inputs:
     description: 'Vcpkg triplet (required when run-install is true)'
     required: false
     default: ''
+  host-triplet:
+    description: 'Vcpkg host triplet'
+    required: false
+    default: ''
   install-features:
     description: 'Vcpkg manifest features'
     required: false

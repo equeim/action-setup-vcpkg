@@ -176,7 +176,10 @@ async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
     }
     installRoot = path.resolve(installRoot);
     console.info('Vcpkg install root path is', installRoot);
-    const args = ['install', `--triplet=${inputs.triplet}`, `--host-triplet=${inputs.triplet}`, `--x-install-root=${installRoot}`];
+    const args = ['install', `--x-install-root=${installRoot}`, `--triplet=${inputs.triplet}`];
+    if (inputs.hostTriplet) {
+        args.push(`--host-triplet=${inputs.hostTriplet}`);
+    }
     if (inputs.installCleanBuildtrees) {
         args.push('--clean-buildtrees-after-build');
     }

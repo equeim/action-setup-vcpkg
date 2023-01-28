@@ -13,6 +13,7 @@ export type Inputs = {
     runInstall: boolean;
     installRoot: string;
     triplet: string;
+    hostTriplet: string;
     installFeatures: string[];
     installCleanBuildtrees: boolean;
     installCleanPackages: boolean;
@@ -32,6 +33,7 @@ export function parseInputs(): Inputs {
     const runInstall = getInputVerbose('run-install', { required: false });
     const installRoot = getInputVerbose('install-root', { required: false });
     const triplet = getInputVerbose('triplet', { required: false });
+    const hostTriplet = getInputVerbose('host-triplet', { required: false });
     const installFeatures = getInputVerbose('install-features', { required: false });
     const installCleanBuildtrees = getInputVerbose('install-clean-buildtrees', { required: false });
     const installCleanPackages = getInputVerbose('install-clean-packages', { required: false });
@@ -43,6 +45,7 @@ export function parseInputs(): Inputs {
         runInstall: runInstall === 'true',
         installRoot: installRoot,
         triplet: triplet,
+        hostTriplet: hostTriplet,
         installFeatures: installFeatures.split(/\s+/).filter(Boolean),
         installCleanBuildtrees: installCleanBuildtrees === 'true',
         installCleanPackages: installCleanPackages === 'true',
