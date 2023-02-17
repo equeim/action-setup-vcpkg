@@ -1,6 +1,10 @@
 name: 'Set up vcpkg'
 inputs:
   # Inputs related to vcpkg root
+  run-setup:
+    description: Set up vcpkg root directory
+    required: false
+    default: 'true'
   vcpkg-root:
     description: Vcpkg root directory
     required: false

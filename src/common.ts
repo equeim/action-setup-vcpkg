@@ -9,6 +9,7 @@ export const latestBinaryPackageHashState = 'latestBinaryPackageHash' as const;
 export const mainStepSucceededState = 'mainStepSucceeded' as const;
 
 export type Inputs = {
+    runSetup: boolean;
     vcpkgRoot: string;
     runInstall: boolean;
     installRoot: string;
@@ -29,6 +30,7 @@ function getInputVerbose(name: string, inputOptions: InputOptions): string {
 }
 
 export function parseInputs(): Inputs {
+    const runSetup = getInputVerbose('run-setup', { required: false });
     const vcpkgRoot = getInputVerbose('vcpkg-root', { required: false });
     const runInstall = getInputVerbose('run-install', { required: false });
     const installRoot = getInputVerbose('install-root', { required: false });
@@ -41,6 +43,7 @@ export function parseInputs(): Inputs {
     const binaryCachePath = getInputVerbose('binary-cache-path', { required: false });
     const saveCache = getInputVerbose('save-cache', { required: false });
     const inputs = {
+        runSetup: runSetup === 'true',
         vcpkgRoot: vcpkgRoot,
         runInstall: runInstall === 'true',
         installRoot: installRoot,

@@ -29,80 +29,6 @@ async function execCommand(command: string, args: string[], shell?: boolean) {
     }
 }
 
-async function extractVcpkgCommit(): Promise<string> {
-    try {
-        core.startGroup('Extract vcpkg commit');
-        const vcpkgConfigurationData = await fs.readFile('vcpkg-configuration.json', { encoding: 'utf-8' });
-        const commit = JSON.parse(vcpkgConfigurationData)['default-registry']['baseline'];
-        if (typeof (commit) === 'string') {
-            console.info('Vcpkg commit is', commit);
-            core.endGroup();
-            return commit;
-        }
-        throw new Error('Failed to extract commit from parsed JSON');
-    } catch (error) {
-        console.error(error);
-        throw new AbortActionError(`Failed to extract vcpkg commit with error '${errorAsString(error)}'`);
-    }
-}
-
-async function setupVcpkg(commit: string, inputs: Inputs): Promise<string> {
-    core.startGroup('Set up vcpkg');
-
-    let exportEnv = true;
-    let vcpkgRoot: string | undefined = inputs.vcpkgRoot;
-    if (vcpkgRoot) {
-        console.info('Using vcpkg root path from action inputs');
-    } else {
-        vcpkgRoot = getEnvVariable(ENV_VCPKG_ROOT, false);
-        if (vcpkgRoot) {
-            console.info(`Using vcpkg root path from ${ENV_VCPKG_ROOT} environment variable`);
-            exportEnv = false;
-        } else {
-            vcpkgRoot = getEnvVariable(ENV_VCPKG_INSTALLATION_ROOT, false);
-            if (vcpkgRoot) {
-                console.info(`Using vcpkg root path from ${ENV_VCPKG_INSTALLATION_ROOT} environment variable`);
-            } else {
-                console.info('Using default vcpkg root path');
-                vcpkgRoot = 'vcpkg';
-            }
-        }
-    }
-    vcpkgRoot = path.resolve(vcpkgRoot);
-    console.info('Vcpkg root path is', vcpkgRoot);
-    if (exportEnv) {
-        core.exportVariable(ENV_VCPKG_ROOT, vcpkgRoot);
-    }
-
-    let checkoutExistingDirectory: boolean;
-    try {
-        const stats = await fs.stat(vcpkgRoot);
-        checkoutExistingDirectory = stats.isDirectory();
-    } catch (error) {
-        checkoutExistingDirectory = false;
-    }
-
-    if (checkoutExistingDirectory) {
-        await execCommand('git', ['-C', vcpkgRoot, 'fetch']);
-        await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
-    } else {
-        await execCommand('git', ['clone', '--no-checkout', 'https://github.com/microsoft/vcpkg.git', vcpkgRoot]);
-        await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
-    }
-
-    let bootstrapScript: string;
-    if (os.platform() == 'win32') {
-        bootstrapScript = 'bootstrap-vcpkg.bat';
-    } else {
-        bootstrapScript = 'bootstrap-vcpkg.sh';
-    }
-    await execCommand(path.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], true);
-
-    core.endGroup();
-
-    return vcpkgRoot;
-}
-
 async function restoreCache(inputs: Inputs) {
     core.startGroup('Restore cache');
 
@@ -167,10 +93,84 @@ async function restoreCache(inputs: Inputs) {
     core.endGroup();
 }
 
-async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
-    if (!inputs.runInstall) {
-        return;
+function resolveVcpkgRoot(inputs: Inputs): string {
+    let exportEnv = true;
+    let vcpkgRoot: string | undefined = inputs.vcpkgRoot;
+    if (vcpkgRoot) {
+        console.info('Using vcpkg root path from action inputs');
+    } else {
+        vcpkgRoot = getEnvVariable(ENV_VCPKG_ROOT, false);
+        if (vcpkgRoot) {
+            console.info(`Using vcpkg root path from ${ENV_VCPKG_ROOT} environment variable`);
+            exportEnv = false;
+        } else {
+            vcpkgRoot = getEnvVariable(ENV_VCPKG_INSTALLATION_ROOT, false);
+            if (vcpkgRoot) {
+                console.info(`Using vcpkg root path from ${ENV_VCPKG_INSTALLATION_ROOT} environment variable`);
+            } else {
+                console.info('Using default vcpkg root path');
+                vcpkgRoot = 'vcpkg';
+            }
+        }
     }
+    vcpkgRoot = path.resolve(vcpkgRoot);
+    console.info('Vcpkg root path is', vcpkgRoot);
+    if (exportEnv) {
+        core.exportVariable(ENV_VCPKG_ROOT, vcpkgRoot);
+    }
+    return vcpkgRoot;
+}
+
+async function extractVcpkgCommit(): Promise<string> {
+    try {
+        core.startGroup('Extract vcpkg commit');
+        const vcpkgConfigurationData = await fs.readFile('vcpkg-configuration.json', { encoding: 'utf-8' });
+        const commit = JSON.parse(vcpkgConfigurationData)['default-registry']['baseline'];
+        if (typeof (commit) === 'string') {
+            console.info('Vcpkg commit is', commit);
+            core.endGroup();
+            return commit;
+        }
+        throw new Error('Failed to extract commit from parsed JSON');
+    } catch (error) {
+        console.error(error);
+        throw new AbortActionError(`Failed to extract vcpkg commit with error '${errorAsString(error)}'`);
+    }
+}
+
+async function setupVcpkg(vcpkgRoot: string): Promise<string> {
+    core.startGroup('Set up vcpkg');
+    const commit = await extractVcpkgCommit();
+    let checkoutExistingDirectory: boolean;
+    try {
+        const stats = await fs.stat(vcpkgRoot);
+        checkoutExistingDirectory = stats.isDirectory();
+    } catch (error) {
+        checkoutExistingDirectory = false;
+    }
+
+    if (checkoutExistingDirectory) {
+        await execCommand('git', ['-C', vcpkgRoot, 'fetch']);
+        await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
+    } else {
+        await execCommand('git', ['clone', '--no-checkout', 'https://github.com/microsoft/vcpkg.git', vcpkgRoot]);
+        await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
+    }
+
+    let bootstrapScript: string;
+    if (os.platform() == 'win32') {
+        bootstrapScript = 'bootstrap-vcpkg.bat';
+    } else {
+        bootstrapScript = 'bootstrap-vcpkg.sh';
+    }
+    await execCommand(path.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], true);
+
+    core.endGroup();
+
+    return vcpkgRoot;
+}
+
+async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
     core.startGroup('Run vcpkg install');
     let installRoot = inputs.installRoot;
     if (installRoot) {
@@ -203,9 +203,16 @@ async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
 
 async function main() {
     const inputs = parseInputs();
-    const vcpkgRoot = await setupVcpkg(await extractVcpkgCommit(), inputs);
     await restoreCache(inputs);
-    await runVcpkgInstall(inputs, vcpkgRoot);
+    if (inputs.runSetup || inputs.runInstall) {
+        const vcpkgRoot = resolveVcpkgRoot(inputs);
+        if (inputs.runSetup) {
+            await setupVcpkg(vcpkgRoot);
+        }
+        if (inputs.runInstall) {
+            await runVcpkgInstall(inputs, vcpkgRoot);
+        }
+    }
     core.saveState(mainStepSucceededState, 'true');
 }
 
