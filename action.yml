@@ -1,9 +1,11 @@
 name: 'Set up vcpkg'
 inputs:
+  # Inputs related to vcpkg root
   vcpkg-root:
     description: Vcpkg root directory
     required: false
     default: ''
+  # Inputs for running `vcpkg install`
   run-install:
     description: Run vcpkg install command
     required: false
@@ -36,6 +38,7 @@ inputs:
     description: 'Clean downloads after building each package'
     required: false
     default: 'false'
+  # Inputs for saving and restoring binary cache
   binary-cache-path:
     description: 'Vcpkg binary cache path'
     required: false

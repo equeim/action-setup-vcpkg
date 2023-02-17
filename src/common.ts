@@ -78,8 +78,11 @@ export function getEnvVariable(name: string, required: boolean = true): string |
     return value;
 }
 
+// Standard vcpkg environment variables
 export const ENV_VCPKG_ROOT = 'VCPKG_ROOT' as const;
 export const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE' as const;
+// GitHub Actions environment variable for vcpkg root
+export const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT' as const;
 
 export type BinaryPackage = {
     filePath: string;
