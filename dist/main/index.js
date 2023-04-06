@@ -61146,7 +61146,7 @@ async function runVcpkgInstall(inputs, vcpkgRoot) {
     }
     installRoot = path__WEBPACK_IMPORTED_MODULE_6__.resolve(installRoot);
     console.info('Vcpkg install root path is', installRoot);
-    const args = ['install', `--x-install-root=${installRoot}`, `--triplet=${inputs.triplet}`];
+    const args = ['install', '--debug', `--x-install-root=${installRoot}`, `--triplet=${inputs.triplet}`];
     if (inputs.hostTriplet) {
         args.push(`--host-triplet=${inputs.hostTriplet}`);
     }
