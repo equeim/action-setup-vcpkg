@@ -197,6 +197,9 @@ async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
     for (const feature of inputs.installFeatures) {
         args.push(`--x-feature=${feature}`);
     }
+    if (inputs.overlayTripletsPath) {
+        args.push(`--overlay-triplets=${inputs.overlayTripletsPath}`)
+    }
     await execCommand(path.join(vcpkgRoot, 'vcpkg'), args);
     core.endGroup();
 }

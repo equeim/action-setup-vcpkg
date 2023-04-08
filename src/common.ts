@@ -19,6 +19,7 @@ export type Inputs = {
     installCleanBuildtrees: boolean;
     installCleanPackages: boolean;
     installCleanDownloads: boolean;
+    overlayTripletsPath: string;
     binaryCachePath: string;
     saveCache: boolean;
 };
@@ -40,6 +41,7 @@ export function parseInputs(): Inputs {
     const installCleanBuildtrees = getInputVerbose('install-clean-buildtrees', { required: false });
     const installCleanPackages = getInputVerbose('install-clean-packages', { required: false });
     const installCleanDownloads = getInputVerbose('install-clean-downloads', { required: false });
+    const overlayTripletsPath = getInputVerbose('overlay-triplets-path', { required: false });
     const binaryCachePath = getInputVerbose('binary-cache-path', { required: false });
     const saveCache = getInputVerbose('save-cache', { required: false });
     const inputs = {
@@ -53,6 +55,7 @@ export function parseInputs(): Inputs {
         installCleanBuildtrees: installCleanBuildtrees === 'true',
         installCleanPackages: installCleanPackages === 'true',
         installCleanDownloads: installCleanDownloads === 'true',
+        overlayTripletsPath: overlayTripletsPath,
         binaryCachePath: binaryCachePath,
         saveCache: saveCache === 'true'
     };

@@ -42,6 +42,10 @@ inputs:
     description: 'Clean downloads after building each package'
     required: false
     default: 'false'
+  overlay-triplets-path:
+    description: Path to overlay triplets directory
+    required: false
+    default: ''
   # Inputs for saving and restoring binary cache
   binary-cache-path:
     description: 'Vcpkg binary cache path'
