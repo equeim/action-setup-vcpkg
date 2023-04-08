@@ -110,13 +110,14 @@ __metadata:
   linkType: hard
 
 "@azure/core-lro@npm:^2.2.0":
-  version: 2.5.1
-  resolution: "@azure/core-lro@npm:2.5.1"
+  version: 2.5.2
+  resolution: "@azure/core-lro@npm:2.5.2"
   dependencies:
     "@azure/abort-controller": ^1.0.0
+    "@azure/core-util": ^1.2.0
     "@azure/logger": ^1.0.0
     tslib: ^2.2.0
-  checksum: 33a47694b539dfe0b97601972b7e1f1cd0c0248ffa2109f69d425cb7e9397ebcfb9221e65a183b4e5890e49721a526e2b39b529e7c372bc455598d800811023b
+  checksum: 9892c8b6d9813ed45ec9a570d6a868fa335afa1ef2f0a0a7dbdef6dd3f8ad35fa2bfe7e47708fb923cb8981f3040674417fc46b664610875b911737ab52b1900
   languageName: node
   linkType: hard
 
@@ -139,13 +140,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@azure/core-util@npm:^1.1.1":
-  version: 1.2.0
-  resolution: "@azure/core-util@npm:1.2.0"
+"@azure/core-util@npm:^1.1.1, @azure/core-util@npm:^1.2.0":
+  version: 1.3.0
+  resolution: "@azure/core-util@npm:1.3.0"
   dependencies:
     "@azure/abort-controller": ^1.0.0
     tslib: ^2.2.0
-  checksum: 58c7e3c9e9fda27242c1ab1dbfcf11eab52cc3e6459a2509fa5572a3faebf3f24c6bf9d92883cd80974119fc1e2c16c7bd2c71f20cfbe670405515c73fdb4093
+  checksum: d1851c5d9017d561f9675c747ec2f9eef2d51e1d9d34ecdfa452419bded4b63918e8736e02d4ad28bee1a4b6bee72c1fe51762b5e1293dbadce437066f44c0a5
   languageName: node
   linkType: hard
 
@@ -233,19 +234,19 @@ __metadata:
   linkType: hard
 
 "@types/node-fetch@npm:^2.5.0":
-  version: 2.6.2
-  resolution: "@types/node-fetch@npm:2.6.2"
+  version: 2.6.3
+  resolution: "@types/node-fetch@npm:2.6.3"
   dependencies:
     "@types/node": "*"
     form-data: ^3.0.0
-  checksum: 6f73b1470000d303d25a6fb92875ea837a216656cb7474f66cdd67bb014aa81a5a11e7ac9c21fe19bee9ecb2ef87c1962bceeaec31386119d1ac86e4c30ad7a6
+  checksum: b68cda58e91535a42dd5337932443c37f8e198ca1e8deeb95bd92a64a9a84d92071867b91c5eb84ee8e13f33d45a70549fe2bc11dd070a894dd561909f4d39f5
   languageName: node
   linkType: hard
 
-"@types/node@npm:*, @types/node@npm:^18.15.5":
-  version: 18.15.5
-  resolution: "@types/node@npm:18.15.5"
-  checksum: 5fbf3453bd5ce1402bb2964e55d928fc8a8a7de5451b1b0fe66587fecb8a3eb86854ca9cefa5076a5971e2cff00e1773ceeb5d872a54f6c6ddfbbc1064b4e91a
+"@types/node@npm:*, @types/node@npm:^18.15.11":
+  version: 18.15.11
+  resolution: "@types/node@npm:18.15.11"
+  checksum: 977b4ad04708897ff0eb049ecf82246d210939c82461922d20f7d2dcfd81bbc661582ba3af28869210f7e8b1934529dcd46bff7d448551400f9d48b9d3bddec3
   languageName: node
   linkType: hard
 
@@ -300,10 +301,10 @@ __metadata:
   dependencies:
     "@actions/cache": ^3.2.1
     "@actions/core": ^1.10.0
-    "@types/node": ^18.15.5
+    "@types/node": ^18.15.11
     "@types/yauzl": ^2.10.0
     "@vercel/ncc": ^0.36.1
-    typescript: ^5.0.2
+    typescript: ^5.0.4
     yauzl: ^2.10.0
   languageName: unknown
   linkType: soft
@@ -1296,23 +1297,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5.0.2":
-  version: 5.0.2
-  resolution: "typescript@npm:5.0.2"
+"typescript@npm:^5.0.4":
+  version: 5.0.4
+  resolution: "typescript@npm:5.0.4"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: bef1dcd166acfc6934b2ec4d72f93edb8961a5fab36b8dd2aaf6f4f4cd5c0210f2e0850aef4724f3b4913d5aef203a94a28ded731b370880c8bcff7e4ff91fc1
+  checksum: 82b94da3f4604a8946da585f7d6c3025fff8410779e5bde2855ab130d05e4fd08938b9e593b6ebed165bda6ad9292b230984f10952cf82f0a0ca07bbeaa08172
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@^5.0.2#~builtin<compat/typescript>":
-  version: 5.0.2
-  resolution: "typescript@patch:typescript@npm%3A5.0.2#~builtin<compat/typescript>::version=5.0.2&hash=85af82"
+"typescript@patch:typescript@^5.0.4#~builtin<compat/typescript>":
+  version: 5.0.4
+  resolution: "typescript@patch:typescript@npm%3A5.0.4#~builtin<compat/typescript>::version=5.0.4&hash=85af82"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: b63cb742fbb9aeb3085e002ad8f10d5fd963606aa4d6b3b65b4e76c396ff09739f03b5dbae08e1698c3bce9d5619d3f67aeb7ee470ed4016bd345b3cfe37b54a
+  checksum: bb309d320c59a26565fb3793dba550576ab861018ff3fd1b7fccabbe46ae4a35546bc45f342c0a0b6f265c801ccdf64ffd68f548f117ceb7f0eac4b805cd52a9
   languageName: node
   linkType: hard
 
