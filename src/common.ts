@@ -98,12 +98,18 @@ export type BinaryPackage = {
     mtime: Date;
 };
 
+const ZIP_EXTENSION = '.zip' as const;
+
+function isZipFile(fileName: string): boolean {
+    return fileName.endsWith(ZIP_EXTENSION);
+}
+
 async function findBinaryPackagesInDir(dirPath: string, packages: BinaryPackage[]) {
     const dir = await fs.opendir(dirPath);
     for await (const dirent of dir) {
         if (dirent.isDirectory()) {
             await findBinaryPackagesInDir(path.join(dirPath, dirent.name), packages);
-        } else if (dirent.isFile()) {
+        } else if (dirent.isFile() && isZipFile(dirent.name)) {
             const filePath = path.join(dirPath, dirent.name);
             const stat = await fs.stat(filePath);
             packages.push({ filePath: filePath, size: stat.size, mtime: stat.mtime });
