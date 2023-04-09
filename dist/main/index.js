@@ -61006,6 +61006,7 @@ async function restoreCache(inputs) {
         }
         else {
             console.info('Cache miss');
+            _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .binaryPackagesCountState */ .Ch, '0');
         }
     }
     catch (error) {
