@@ -90,6 +90,7 @@ async function restoreCache(inputs: Inputs) {
             console.info('Binary packages count is', binaryPackagesCount);
         } else {
             console.info('Cache miss');
+            core.saveState(binaryPackagesCountState, '0');
         }
     } catch (error) {
         console.error(error);
