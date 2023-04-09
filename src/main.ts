@@ -64,7 +64,10 @@ async function restoreCache(inputs: Inputs) {
      * last part of key is random so that exact matches never occur and cache is upload
      * only if vcpkg actually created new binary packages
      */
-    const restoreKey = `vcpkg|RUNNER_OS=${runnerOs}|`
+    let restoreKey = `vcpkg|RUNNER_OS=${runnerOs}|`
+    if (inputs.cacheKeyTag) {
+        restoreKey += `tag=${inputs.cacheKeyTag}|`
+    }
     console.info('Cache restore key is', restoreKey);
     const key = `${restoreKey}random=${randomBytes(32).toString('hex')}`;
     core.saveState(cacheKeyState, key);

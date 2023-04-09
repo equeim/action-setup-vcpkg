@@ -22,6 +22,7 @@ export type Inputs = {
     overlayTripletsPath: string;
     binaryCachePath: string;
     saveCache: boolean;
+    cacheKeyTag: string;
 };
 
 function getInputVerbose(name: string, inputOptions: InputOptions): string {
@@ -44,6 +45,7 @@ export function parseInputs(): Inputs {
     const overlayTripletsPath = getInputVerbose('overlay-triplets-path', { required: false });
     const binaryCachePath = getInputVerbose('binary-cache-path', { required: false });
     const saveCache = getInputVerbose('save-cache', { required: false });
+    const cacheKeyTag = getInputVerbose('cache-key-tag', { required: false });
     const inputs = {
         runSetup: runSetup === 'true',
         vcpkgRoot: vcpkgRoot,
@@ -57,7 +59,8 @@ export function parseInputs(): Inputs {
         installCleanDownloads: installCleanDownloads === 'true',
         overlayTripletsPath: overlayTripletsPath,
         binaryCachePath: binaryCachePath,
-        saveCache: saveCache === 'true'
+        saveCache: saveCache === 'true',
+        cacheKeyTag: cacheKeyTag
     };
     if (inputs.runInstall && !triplet) {
         throw new AbortActionError('Triplet must be defined');

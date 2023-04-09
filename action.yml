@@ -55,6 +55,10 @@ inputs:
     description: 'Enable cache saving'
     required: false
     default: 'true'
+  cache-key-tag:
+    description: 'Addition cache key tag to differentiate between cache entries with same RUNNER_OS'
+    required: false
+    default: ''
 runs:
   using: 'node16'
   main: 'dist/main/index.js'
