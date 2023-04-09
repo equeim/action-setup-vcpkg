@@ -8,9 +8,14 @@ const packageNameKey = 'Package' as const;
 const architectureKey = 'Architecture' as const;
 const keyValueSeparator = ':' as const;
 
+enum PackageNameBrand { _ = '' };
+export type PackageName = string & PackageNameBrand;
+enum ArchitectureBrand { _ = '' };
+export type Architecture = string & ArchitectureBrand;
+
 export type BinaryPackageControl = {
-    packageName: string,
-    architecture: string
+    packageName: PackageName,
+    architecture: Architecture;
 };
 
 export async function extractBinaryPackageControl(pkg: BinaryPackage): Promise<BinaryPackageControl> {
@@ -53,8 +58,8 @@ export async function extractBinaryPackageControl(pkg: BinaryPackage): Promise<B
         });
 
         const control = await new Promise<BinaryPackageControl>((resolve, reject) => {
-            let packageName: string | undefined;
-            let architecture: string | undefined;
+            let packageName: PackageName | undefined;
+            let architecture: Architecture | undefined;
 
             const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
             rl.on('line', (line) => {
@@ -65,9 +70,9 @@ export async function extractBinaryPackageControl(pkg: BinaryPackage): Promise<B
                         return line.slice(separatorIndex + 1).trim();
                     };
                     if (key == packageNameKey) {
-                        packageName = lazyValue();
+                        packageName = lazyValue() as PackageName;
                     } else if (key == architectureKey) {
-                        architecture = lazyValue();
+                        architecture = lazyValue() as Architecture;
                     }
                     if (packageName !== undefined && architecture !== undefined) {
                         rl.close();

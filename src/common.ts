@@ -104,7 +104,7 @@ function isZipFile(fileName: string): boolean {
     return fileName.endsWith(ZIP_EXTENSION);
 }
 
-async function findBinaryPackagesInDir(dirPath: string, onFoundPackage: (dirPath: string, fileName: string) => void) {
+export async function findBinaryPackagesInDir(dirPath: string, onFoundPackage: (dirPath: string, fileName: string) => void) {
     const dir = await fs.opendir(dirPath);
     for await (const dirent of dir) {
         if (dirent.isDirectory()) {
@@ -113,37 +113,6 @@ async function findBinaryPackagesInDir(dirPath: string, onFoundPackage: (dirPath
             onFoundPackage(dirPath, dirent.name);
         }
     }
-}
-
-export async function countBinaryPackages(): Promise<number> {
-    let count = 0;
-    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), (_dirPath, _fileName) => {
-        ++count;
-    });
-    return count;
-}
-
-export async function findBinaryPackages(): Promise<BinaryPackage[]> {
-    const packages: BinaryPackage[] = [];
-
-    const statPackage = async (filePath: string) => {
-        const stat = await fs.stat(filePath);
-        packages.push({ filePath: filePath, size: stat.size, mtime: stat.mtime });
-    };
-    const statPromises: Promise<void>[] = [];
-
-    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), (dirPath, fileName) => {
-        statPromises.push(statPackage(path.join(dirPath, fileName)));
-    });
-
-    await Promise.all(statPromises);
-
-    // Sort by mtime in descending order, so that oldest files are at the end
-    packages.sort((a, b) => {
-        return b.mtime.getTime() - a.mtime.getTime();
-    });
-
-    return packages;
 }
 
 export function bytesToMibibytes(bytes: number): number {

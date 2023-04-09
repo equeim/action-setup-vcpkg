@@ -1,16 +1,30 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
-import { AbortActionError, BinaryPackage, binaryPackagesCountState, bytesToMibibytes, cacheKeyState, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackages, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
-import { extractBinaryPackageControl } from './extractControl.js';
+import { AbortActionError, BinaryPackage, binaryPackagesCountState, bytesToMibibytes, cacheKeyState, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { Architecture, extractBinaryPackageControl, PackageName } from './extractControl.js';
+import path from 'path';
 
 
-async function findBinaryPackagesAndComputeTotalSize(): Promise<BinaryPackage[]> {
+async function findBinaryPackages(): Promise<BinaryPackage[]> {
     core.startGroup('Searching packages in binary cache');
-    const packages = await findBinaryPackages();
-    let totalSize = packages.reduce((prev, cur) => prev + cur.size, 0);
-    console.info('Found', packages.length, 'cached packages, total size is', bytesToMibibytes(totalSize), 'MiB');
-    core.endGroup();
+    const packages: BinaryPackage[] = [];
+
+    let totalSize = 0;
+    const statPackage = async (filePath: string) => {
+        const stat = await fs.stat(filePath);
+        totalSize += stat.size;
+        packages.push({ filePath: filePath, size: stat.size, mtime: stat.mtime });
+    };
+
+    const statPromises: Promise<void>[] = [];
+    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), (dirPath, fileName) => {
+        statPromises.push(statPackage(path.join(dirPath, fileName)));
+    });
+    await Promise.all(statPromises);
+
+    console.info(`Found ${packages.length} binary packages total size is ${bytesToMibibytes(totalSize)} MiB`);
+
     return packages;
 }
 
@@ -18,13 +32,7 @@ function areThereNewBinaryPackages(packages: BinaryPackage[]): boolean {
     const previousCount = parseInt(core.getState(binaryPackagesCountState));
     console.info('Previous count of binary packages is', previousCount);
     const binaryPackagesCount = packages.length;
-    console.info('New packages count is', binaryPackagesCount);
-    if (binaryPackagesCount === previousCount) {
-        console.info('No new binary packages');
-        return false;
-    }
-    console.info('There are new binary packages');
-    return true;
+    return binaryPackagesCount !== previousCount;
 }
 
 function computeIfAbsent<K, V>(map: Map<K, V>, key: K, mappingFunction: (key: K) => V): V {
@@ -38,12 +46,12 @@ function computeIfAbsent<K, V>(map: Map<K, V>, key: K, mappingFunction: (key: K)
 
 async function removeOldVersions(packages: BinaryPackage[]) {
     core.startGroup('Removing old versions of packages');
-    const identifiedPackages = new Map<string, Map<string, BinaryPackage[]>>();
+    const identifiedPackages = new Map<PackageName, Map<Architecture, BinaryPackage[]>>();
     for (const pkg of packages) {
         try {
             const control = await extractBinaryPackageControl(pkg);
             const pkgsWithSameName = computeIfAbsent(identifiedPackages, control.packageName, () => {
-                return new Map<string, BinaryPackage[]>();
+                return new Map<Architecture, BinaryPackage[]>();
             });
             const pkgsWithSameNameAndArch = computeIfAbsent(pkgsWithSameName, control.architecture, () => { return []; });
             pkgsWithSameNameAndArch.push(pkg);
@@ -55,16 +63,19 @@ async function removeOldVersions(packages: BinaryPackage[]) {
     const rmPromises: Promise<void>[] = [];
     for (const [packageName, pkgsWithSameName] of identifiedPackages) {
         for (const [architecture, pkgsWithSameNameAndArch] of pkgsWithSameName) {
-            if (pkgsWithSameNameAndArch.length > 1) {
-                console.info('Removing older versions of package', packageName, 'with architecture', architecture, `(latest is ${pkgsWithSameNameAndArch.at(0)?.filePath})`);
-                // Packages are sorted from newest to oldest, remove old ones
-                while (pkgsWithSameNameAndArch.length > 1) {
-                    const pkg = pkgsWithSameNameAndArch.pop()!!;
-                    console.info(' - Removing', pkg.filePath);
-                    rmPromises.push(fs.rm(pkg.filePath));
-                    remainingPackages.delete(pkg);
-                }
+            // Sort by mtime in descending order, so that oldest files are at the end
+            pkgsWithSameNameAndArch.sort((a, b) => {
+                return b.mtime.getTime() - a.mtime.getTime();
+            });
+            console.info(`Packages with name ${packageName} and architecture ${architecture}:`);
+            while (pkgsWithSameNameAndArch.length > 1) {
+                const pkg = pkgsWithSameNameAndArch.pop()!!;
+                console.info(` - Removing ${pkg.filePath}, with size ${bytesToMibibytes(pkg.size)} MiB and mtime ${pkg.mtime}`);
+                rmPromises.push(fs.rm(pkg.filePath));
+                remainingPackages.delete(pkg);
             }
+            const last = pkgsWithSameNameAndArch.at(0)!!;
+            console.info(` - Latest is ${last.filePath}, with size ${bytesToMibibytes(last.size)} MiB and mtime ${last.mtime}`);
         }
     }
     if (rmPromises.length > 0) {
@@ -109,15 +120,16 @@ async function main() {
         console.info('Cache saving is disabled, skip saving cache');
         return;
     }
-    const packages = await findBinaryPackagesAndComputeTotalSize();
+    const packages = await findBinaryPackages();
     if (packages.length == 0) {
         console.info('No binary packages, skip saving cache');
         return;
     }
     if (!areThereNewBinaryPackages(packages)) {
-        console.info('Skip saving cache');
+        console.info('No new binary packages, skip saving cache');
         return;
     }
+    console.info('There are new binary packages');
     await removeOldVersions(packages);
     await saveCache();
 }

@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AbortActionError, binaryPackagesCountState, cacheKeyState, countBinaryPackages, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, errorAsString, getEnvVariable, Inputs, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, binaryPackagesCountState, cacheKeyState, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, errorAsString, findBinaryPackagesInDir, getEnvVariable, Inputs, mainStepSucceededState, parseInputs, runMain } from './common.js';
 
 
 async function execProcess(process: ChildProcess) {
@@ -27,6 +27,15 @@ async function execCommand(command: string, args: string[], shell?: boolean) {
         console.error(error);
         throw new AbortActionError(`Command '${command}' failed with error '${errorAsString(error)}'`);
     }
+}
+
+async function countBinaryPackages(): Promise<number> {
+    core.startGroup('Counting packages in binary cache');
+    let count = 0;
+    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), (_dirPath, _fileName) => {
+        ++count;
+    });
+    return count;
 }
 
 async function restoreCache(inputs: Inputs) {
