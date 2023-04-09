@@ -1,11 +1,10 @@
 import { getInput, InputOptions, setFailed } from '@actions/core';
-import { createHash } from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { env } from 'process';
 
 export const cacheKeyState = 'cacheKey' as const;
-export const latestBinaryPackageHashState = 'latestBinaryPackageHash' as const;
+export const binaryPackagesCountState = 'binaryPackagesCount' as const;
 export const mainStepSucceededState = 'mainStepSucceeded' as const;
 
 export type Inputs = {
@@ -120,14 +119,6 @@ export async function findBinaryPackages(): Promise<BinaryPackage[]> {
         return b.mtimeMs - a.mtimeMs;
     });
     return packages;
-}
-
-export function computeHashOfBinaryPackage(pkg: BinaryPackage): string {
-    const hash = createHash('sha256');
-    hash.update(pkg.filePath);
-    hash.update(pkg.mtimeMs.toString());
-    hash.update(pkg.size.toString());
-    return hash.digest('hex');
 }
 
 export class AbortActionError extends Error {

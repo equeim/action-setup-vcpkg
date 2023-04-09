@@ -1,7 +1,7 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
-import { AbortActionError, BinaryPackage, cacheKeyState, computeHashOfBinaryPackage, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackages, getEnvVariable, latestBinaryPackageHashState, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, BinaryPackage, binaryPackagesCountState, cacheKeyState, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackages, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
 import { extractBinaryPackageControl } from './extractControl.js';
 
 
@@ -18,18 +18,16 @@ async function findBinaryPackagesAndComputeTotalSize(): Promise<BinaryPackage[]>
     return packages;
 }
 
-function didLatestPackageChange(packages: BinaryPackage[]): boolean {
-    const previousHash = core.getState(latestBinaryPackageHashState);
-    console.info('Previous hash of latest binary package is', previousHash);
-    const latestBinaryPackage = packages.at(0)!!;
-    console.info('Latest binary package is', latestBinaryPackage);
-    const hash = computeHashOfBinaryPackage(latestBinaryPackage);
-    console.info('Hash of latest binary package is', hash);
-    if (hash === previousHash) {
-        console.info('Hash of latest binary package did not change');
+function areThereNewBinaryPackages(packages: BinaryPackage[]): boolean {
+    const previousCount = parseInt(core.getState(binaryPackagesCountState));
+    console.info('Previous count of binary packages is', previousCount);
+    const binaryPackagesCount = packages.length;
+    console.info('New packages count is', binaryPackagesCount);
+    if (binaryPackagesCount === previousCount) {
+        console.info('No new binary packages');
         return false;
     }
-    console.info('Hash of latest binary package changed');
+    console.info('There are new binary packages');
     return true;
 }
 
@@ -49,7 +47,7 @@ async function removeOldVersions(packages: BinaryPackage[]) {
         try {
             const control = await extractBinaryPackageControl(pkg);
             const pkgsWithSameName = computeIfAbsent(identifiedPackages, control.packageName, () => {
-                return new Map<string, BinaryPackage[]>()
+                return new Map<string, BinaryPackage[]>();
             });
             const pkgsWithSameNameAndArch = computeIfAbsent(pkgsWithSameName, control.architecture, () => { return []; });
             pkgsWithSameNameAndArch.push(pkg);
@@ -58,11 +56,11 @@ async function removeOldVersions(packages: BinaryPackage[]) {
         }
     }
     const remainingPackages = new Set(packages);
-    const rmPromises: Promise<void>[] = []
+    const rmPromises: Promise<void>[] = [];
     for (const [packageName, pkgsWithSameName] of identifiedPackages) {
         for (const [architecture, pkgsWithSameNameAndArch] of pkgsWithSameName) {
             if (pkgsWithSameNameAndArch.length > 1) {
-                console.info('Removing older versions of package', packageName, 'with architecture', architecture, `(latest is ${pkgsWithSameNameAndArch.at(0)?.filePath})`)
+                console.info('Removing older versions of package', packageName, 'with architecture', architecture, `(latest is ${pkgsWithSameNameAndArch.at(0)?.filePath})`);
                 // Packages are sorted from newest to oldest, remove old ones
                 while (pkgsWithSameNameAndArch.length > 1) {
                     const pkg = pkgsWithSameNameAndArch.pop()!!;
@@ -120,8 +118,8 @@ async function main() {
         console.info('No binary packages, skip saving cache');
         return;
     }
-    if (!didLatestPackageChange(packages)) {
-        console.info('Latest binary package did not change, skip saving cache');
+    if (!areThereNewBinaryPackages(packages)) {
+        console.info('Skip saving cache');
         return;
     }
     await removeOldVersions(packages);
