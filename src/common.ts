@@ -104,26 +104,45 @@ function isZipFile(fileName: string): boolean {
     return fileName.endsWith(ZIP_EXTENSION);
 }
 
-async function findBinaryPackagesInDir(dirPath: string, packages: BinaryPackage[]) {
+async function findBinaryPackagesInDir(dirPath: string, onFoundPackage: (dirPath: string, fileName: string) => void) {
     const dir = await fs.opendir(dirPath);
     for await (const dirent of dir) {
         if (dirent.isDirectory()) {
-            await findBinaryPackagesInDir(path.join(dirPath, dirent.name), packages);
+            await findBinaryPackagesInDir(path.join(dirPath, dirent.name), onFoundPackage);
         } else if (dirent.isFile() && isZipFile(dirent.name)) {
-            const filePath = path.join(dirPath, dirent.name);
-            const stat = await fs.stat(filePath);
-            packages.push({ filePath: filePath, size: stat.size, mtime: stat.mtime });
+            onFoundPackage(dirPath, dirent.name);
         }
     }
 }
 
+export async function countBinaryPackages(): Promise<number> {
+    let count = 0;
+    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), (_dirPath, _fileName) => {
+        ++count;
+    });
+    return count;
+}
+
 export async function findBinaryPackages(): Promise<BinaryPackage[]> {
     const packages: BinaryPackage[] = [];
-    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), packages);
+
+    const statPackage = async (filePath: string) => {
+        const stat = await fs.stat(filePath);
+        packages.push({ filePath: filePath, size: stat.size, mtime: stat.mtime });
+    };
+    const statPromises: Promise<void>[] = [];
+
+    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), (dirPath, fileName) => {
+        statPromises.push(statPackage(path.join(dirPath, fileName)));
+    });
+
+    await Promise.all(statPromises);
+
     // Sort by mtime in descending order, so that oldest files are at the end
     packages.sort((a, b) => {
         return b.mtime.getTime() - a.mtime.getTime();
     });
+
     return packages;
 }
 

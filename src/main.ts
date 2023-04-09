@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AbortActionError, binaryPackagesCountState, cacheKeyState, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, errorAsString, findBinaryPackages, getEnvVariable, Inputs, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, binaryPackagesCountState, cacheKeyState, countBinaryPackages, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, errorAsString, getEnvVariable, Inputs, mainStepSucceededState, parseInputs, runMain } from './common.js';
 
 
 async function execProcess(process: ChildProcess) {
@@ -76,7 +76,7 @@ async function restoreCache(inputs: Inputs) {
         const hitKey = await cache.restoreCache([cacheDir], key, [restoreKey]);
         if (hitKey != null) {
             console.info('Cache hit on key', hitKey);
-            const binaryPackagesCount = (await findBinaryPackages()).length;
+            const binaryPackagesCount = (await countBinaryPackages());
             core.saveState(binaryPackagesCountState, binaryPackagesCount.toString());
             console.info('Binary packages count is', binaryPackagesCount);
         } else {
