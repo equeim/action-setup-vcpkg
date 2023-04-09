@@ -1,7 +1,7 @@
 import * as readline from 'readline';
 import { Readable } from 'stream';
 import * as yauzl from 'yauzl';
-import { BinaryPackage } from './common.js';
+import { BinaryPackage, bytesToMibibytes } from './common.js';
 
 const controlFileName = 'CONTROL' as const;
 const packageNameKey = 'Package' as const;
@@ -84,10 +84,10 @@ export async function extractBinaryPackageControl(pkg: BinaryPackage): Promise<B
                 if (architecture === undefined) {
                     notFound.push(architectureKey);
                 }
-                reject(new Error(`${controlFileName} file doesn't contain required keys: ${notFound}`));
+                reject(new Error(`${controlFileName} file of archive ${pkg.filePath} doesn't contain required keys: ${notFound}`));
             });
         });
-
+        console.info(`Found binary package ${pkg.filePath} with name ${control.packageName}, architecture ${control.architecture}, size ${bytesToMibibytes(pkg.size)} MiB and mtime ${pkg.mtime}`);
         return control;
     } finally {
         zipfile.close();

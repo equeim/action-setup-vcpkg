@@ -95,7 +95,7 @@ export const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT' as const;
 export type BinaryPackage = {
     filePath: string;
     size: number;
-    mtimeMs: number;
+    mtime: Date;
 };
 
 async function findBinaryPackagesInDir(dirPath: string, packages: BinaryPackage[]) {
@@ -106,7 +106,7 @@ async function findBinaryPackagesInDir(dirPath: string, packages: BinaryPackage[
         } else if (dirent.isFile()) {
             const filePath = path.join(dirPath, dirent.name);
             const stat = await fs.stat(filePath);
-            packages.push({ filePath: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
+            packages.push({ filePath: filePath, size: stat.size, mtime: stat.mtime });
         }
     }
 }
@@ -116,9 +116,13 @@ export async function findBinaryPackages(): Promise<BinaryPackage[]> {
     await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), packages);
     // Sort by mtime in descending order, so that oldest files are at the end
     packages.sort((a, b) => {
-        return b.mtimeMs - a.mtimeMs;
+        return b.mtime.getTime() - a.mtime.getTime();
     });
     return packages;
+}
+
+export function bytesToMibibytes(bytes: number): number {
+    return (bytes / (1024.0 * 1024.0));
 }
 
 export class AbortActionError extends Error {

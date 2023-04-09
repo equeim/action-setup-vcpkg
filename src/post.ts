@@ -1,13 +1,9 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
-import { AbortActionError, BinaryPackage, binaryPackagesCountState, cacheKeyState, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackages, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, BinaryPackage, binaryPackagesCountState, bytesToMibibytes, cacheKeyState, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackages, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
 import { extractBinaryPackageControl } from './extractControl.js';
 
-
-function bytesToMibibytes(bytes: number): number {
-    return (bytes / (1024.0 * 1024.0));
-}
 
 async function findBinaryPackagesAndComputeTotalSize(): Promise<BinaryPackage[]> {
     core.startGroup('Searching packages in binary cache');
