@@ -62041,7 +62041,6 @@ __nccwpck_require__.d(__webpack_exports__, {
   "oc": () => (/* binding */ AbortActionError),
   "Eh": () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
   "Ch": () => (/* binding */ binaryPackagesCountState),
-  "bj": () => (/* binding */ bytesToMibibytes),
   "GF": () => (/* binding */ cacheKeyState),
   "ZT": () => (/* binding */ errorAsString),
   "Ad": () => (/* binding */ findBinaryPackagesInDir),
@@ -62146,9 +62145,6 @@ async function findBinaryPackagesInDir(dirPath, onFoundPackage) {
         }
     }
 }
-function bytesToMibibytes(bytes) {
-    return (bytes / (1024.0 * 1024.0));
-}
 class AbortActionError extends Error {
     constructor(message) {
         super(message);
@@ -62196,10 +62192,7 @@ __nccwpck_require__.d(__webpack_exports__, {
 const external_readline_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("readline");
 // EXTERNAL MODULE: ./node_modules/yauzl/index.js
 var yauzl = __nccwpck_require__(8781);
-// EXTERNAL MODULE: ./src/common.ts + 1 modules
-var common = __nccwpck_require__(304);
 ;// CONCATENATED MODULE: ./src/extractControl.ts
-
 
 
 const controlFileName = 'CONTROL';
@@ -62290,7 +62283,6 @@ async function extractBinaryPackageControl(pkg) {
                 reject(new Error(`${controlFileName} file of archive ${pkg.filePath} doesn't contain required keys: ${notFound}`));
             });
         });
-        console.info(`Found binary package ${pkg.filePath} with name ${control.packageName}, architecture ${control.architecture}, size ${(0,common/* bytesToMibibytes */.bj)(pkg.size)} MiB and mtime ${pkg.mtime}`);
         return control;
     }
     finally {
@@ -62321,6 +62313,9 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __we
 
 
 
+function bytesToMibibytesString(bytes) {
+    return (bytes / (1024.0 * 1024.0)).toFixed(2) + ' MiB';
+}
 async function findBinaryPackages() {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Searching packages in binary cache');
     const packages = [];
@@ -62335,7 +62330,7 @@ async function findBinaryPackages() {
         statPromises.push(statPackage(path__WEBPACK_IMPORTED_MODULE_5___default().join(dirPath, fileName)));
     });
     await Promise.all(statPromises);
-    console.info(`Found ${packages.length} binary packages total size is ${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .bytesToMibibytes */ .bj)(totalSize)} MiB`);
+    console.info(`Found ${packages.length} binary packages total size is ${bytesToMibibytesString(totalSize)}`);
     return packages;
 }
 function areThereNewBinaryPackages(packages) {
@@ -62379,12 +62374,12 @@ async function removeOldVersions(packages) {
             console.info(`Packages with name ${packageName} and architecture ${architecture}:`);
             while (pkgsWithSameNameAndArch.length > 1) {
                 const pkg = pkgsWithSameNameAndArch.pop();
-                console.info(` - Removing ${pkg.filePath}, with size ${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .bytesToMibibytes */ .bj)(pkg.size)} MiB and mtime ${pkg.mtime}`);
+                console.info(` - Removing ${pkg.filePath}, with size ${bytesToMibibytesString(pkg.size)} and mtime ${pkg.mtime.toISOString()}`);
                 rmPromises.push(fs_promises__WEBPACK_IMPORTED_MODULE_2__.rm(pkg.filePath));
                 remainingPackages.delete(pkg);
             }
             const last = pkgsWithSameNameAndArch.at(0);
-            console.info(` - Latest is ${last.filePath}, with size ${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .bytesToMibibytes */ .bj)(last.size)} MiB and mtime ${last.mtime}`);
+            console.info(` - Latest is ${last.filePath}, with size ${bytesToMibibytesString(last.size)} and mtime ${last.mtime.toISOString()}`);
         }
     }
     if (rmPromises.length > 0) {
@@ -62396,7 +62391,7 @@ async function removeOldVersions(packages) {
             throw new _common_js__WEBPACK_IMPORTED_MODULE_3__/* .AbortActionError */ .oc(`Failed to remove packages with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .errorAsString */ .ZT)(error)}'`);
         }
         let totalSize = [...remainingPackages].reduce((prev, cur) => prev + cur.size, 0);
-        console.info('New packages count is', remainingPackages.size, 'and total size is', (0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .bytesToMibibytes */ .bj)(totalSize), 'MiB');
+        console.info('New packages count is', remainingPackages.size, 'and total size is', bytesToMibibytesString(totalSize));
     }
     else {
         console.info('Did not remove any packages');

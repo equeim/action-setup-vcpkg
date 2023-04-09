@@ -115,10 +115,6 @@ export async function findBinaryPackagesInDir(dirPath: string, onFoundPackage: (
     }
 }
 
-export function bytesToMibibytes(bytes: number): number {
-    return (bytes / (1024.0 * 1024.0));
-}
-
 export class AbortActionError extends Error {
     constructor(message: string) {
         super(message);

@@ -60765,8 +60765,6 @@ __nccwpck_require__.d(__webpack_exports__, {
   "Aq": () => (/* binding */ runMain)
 });
 
-// UNUSED EXPORTS: bytesToMibibytes
-
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
 // EXTERNAL MODULE: external "fs/promises"
@@ -60859,9 +60857,6 @@ async function findBinaryPackagesInDir(dirPath, onFoundPackage) {
             onFoundPackage(dirPath, dirent.name);
         }
     }
-}
-function bytesToMibibytes(bytes) {
-    return (bytes / (1024.0 * 1024.0));
 }
 class AbortActionError extends Error {
     constructor(message) {

@@ -1,10 +1,13 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
-import { AbortActionError, BinaryPackage, binaryPackagesCountState, bytesToMibibytes, cacheKeyState, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, BinaryPackage, binaryPackagesCountState, cacheKeyState, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
 import { Architecture, extractBinaryPackageControl, PackageName } from './extractControl.js';
 import path from 'path';
 
+function bytesToMibibytesString(bytes: number): string {
+    return (bytes / (1024.0 * 1024.0)).toFixed(2) + ' MiB';
+}
 
 async function findBinaryPackages(): Promise<BinaryPackage[]> {
     core.startGroup('Searching packages in binary cache');
@@ -23,7 +26,7 @@ async function findBinaryPackages(): Promise<BinaryPackage[]> {
     });
     await Promise.all(statPromises);
 
-    console.info(`Found ${packages.length} binary packages total size is ${bytesToMibibytes(totalSize)} MiB`);
+    console.info(`Found ${packages.length} binary packages total size is ${bytesToMibibytesString(totalSize)}`);
 
     return packages;
 }
@@ -70,12 +73,12 @@ async function removeOldVersions(packages: BinaryPackage[]) {
             console.info(`Packages with name ${packageName} and architecture ${architecture}:`);
             while (pkgsWithSameNameAndArch.length > 1) {
                 const pkg = pkgsWithSameNameAndArch.pop()!!;
-                console.info(` - Removing ${pkg.filePath}, with size ${bytesToMibibytes(pkg.size)} MiB and mtime ${pkg.mtime}`);
+                console.info(` - Removing ${pkg.filePath}, with size ${bytesToMibibytesString(pkg.size)} and mtime ${pkg.mtime.toISOString()}`);
                 rmPromises.push(fs.rm(pkg.filePath));
                 remainingPackages.delete(pkg);
             }
             const last = pkgsWithSameNameAndArch.at(0)!!;
-            console.info(` - Latest is ${last.filePath}, with size ${bytesToMibibytes(last.size)} MiB and mtime ${last.mtime}`);
+            console.info(` - Latest is ${last.filePath}, with size ${bytesToMibibytesString(last.size)} and mtime ${last.mtime.toISOString()}`);
         }
     }
     if (rmPromises.length > 0) {
@@ -86,7 +89,7 @@ async function removeOldVersions(packages: BinaryPackage[]) {
             throw new AbortActionError(`Failed to remove packages with error '${errorAsString(error)}'`);
         }
         let totalSize = [...remainingPackages].reduce((prev, cur) => prev + cur.size, 0);
-        console.info('New packages count is', remainingPackages.size, 'and total size is', bytesToMibibytes(totalSize), 'MiB');
+        console.info('New packages count is', remainingPackages.size, 'and total size is', bytesToMibibytesString(totalSize));
     } else {
         console.info('Did not remove any packages');
     }
