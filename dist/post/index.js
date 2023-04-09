@@ -13891,6 +13891,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 var logger$1 = __nccwpck_require__(3233);
 var abortController = __nccwpck_require__(2557);
+var coreUtil = __nccwpck_require__(1333);
 
 // Copyright (c) Microsoft Corporation.
 /**
@@ -14139,7 +14140,7 @@ function transformStatus(inputs) {
         case "cancelled":
             return "canceled";
         default: {
-            logger.warning(`LRO: unrecognized operation status: ${status}`);
+            logger.verbose(`LRO: unrecognized operation status: ${status}`);
             return status;
         }
     }
@@ -14301,58 +14302,6 @@ async function pollHttpOperation(inputs) {
 }
 
 // Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-/**
- * Map an optional value through a function
- * @internal
- */
-const maybemap = (value, f) => value === undefined ? undefined : f(value);
-const INTERRUPTED = new Error("The poller is already stopped");
-/**
- * A promise that delays resolution until a certain amount of time (in milliseconds) has passed, with facilities for
- * robust cancellation.
- *
- * ### Example:
- *
- * ```javascript
- * let toCancel;
- *
- * // Wait 20 seconds, and optionally allow the function to be cancelled.
- * await delayMs(20000, (cancel) => { toCancel = cancel });
- *
- * // ... if `toCancel` is called before the 20 second timer expires, then the delayMs promise will reject.
- * ```
- *
- * @internal
- * @param ms - the number of milliseconds to wait before resolving
- * @param cb - a callback that can provide the caller with a cancellation function
- */
-function delayMs(ms) {
-    let aborted = false;
-    let toReject;
-    return Object.assign(new Promise((resolve, reject) => {
-        let token;
-        toReject = () => {
-            maybemap(token, clearTimeout);
-            reject(INTERRUPTED);
-        };
-        // In the rare case that the operation is _already_ aborted, we will reject instantly. This could happen, for
-        // example, if the user calls the cancellation function immediately without yielding execution.
-        if (aborted) {
-            toReject();
-        }
-        else {
-            token = setTimeout(resolve, ms);
-        }
-    }), {
-        cancel: () => {
-            aborted = true;
-            toReject === null || toReject === void 0 ? void 0 : toReject();
-        },
-    });
-}
-
-// Copyright (c) Microsoft Corporation.
 const createStateProxy$1 = () => ({
     /**
      * The state at this point is created to be of type OperationState<TResult>.
@@ -14404,7 +14353,6 @@ function buildCreatePoller(inputs) {
                 setErrorAsResult: !resolveOnUnsuccessful,
             });
         let resultPromise;
-        let cancelJob;
         const abortController$1 = new abortController.AbortController();
         const handlers = new Map();
         const handleProgressEvents = async () => handlers.forEach((h) => h(state));
@@ -14417,7 +14365,6 @@ function buildCreatePoller(inputs) {
             isStopped: () => resultPromise === undefined,
             stopPolling: () => {
                 abortController$1.abort();
-                cancelJob === null || cancelJob === void 0 ? void 0 : cancelJob();
             },
             toString: () => JSON.stringify({
                 state,
@@ -14435,9 +14382,7 @@ function buildCreatePoller(inputs) {
                 if (!poller.isDone()) {
                     await poller.poll({ abortSignal });
                     while (!poller.isDone()) {
-                        const delay = delayMs(currentPollIntervalInMs);
-                        cancelJob = delay.cancel;
-                        await delay;
+                        await coreUtil.delay(currentPollIntervalInMs, { abortSignal });
                         await poller.poll({ abortSignal });
                     }
                 }
@@ -15409,11 +15354,11 @@ var crypto = __nccwpck_require__(6113);
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-var _a;
+var _a$1;
 /**
  * A constant that indicates whether the environment the code is running is Node.JS.
  */
-const isNode = typeof process !== "undefined" && Boolean(process.version) && Boolean((_a = process.versions) === null || _a === void 0 ? void 0 : _a.node);
+const isNode = typeof process !== "undefined" && Boolean(process.version) && Boolean((_a$1 = process.versions) === null || _a$1 === void 0 ? void 0 : _a$1.node);
 
 // Copyright (c) Microsoft Corporation.
 /**
@@ -15604,6 +15549,22 @@ function objectHasProperty(thing, property) {
     return (isDefined(thing) && typeof thing === "object" && property in thing);
 }
 
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+var _a;
+// NOTE: This is a workaround until we can use `globalThis.crypto.randomUUID` in Node.js 19+.
+const uuidFunction = typeof ((_a = globalThis === null || globalThis === void 0 ? void 0 : globalThis.crypto) === null || _a === void 0 ? void 0 : _a.randomUUID) === "function"
+    ? globalThis.crypto.randomUUID.bind(globalThis.crypto)
+    : crypto.randomUUID;
+/**
+ * Generated Universally Unique Identifier
+ *
+ * @returns RFC4122 v4 UUID.
+ */
+function randomUUID() {
+    return uuidFunction();
+}
+
 exports.computeSha256Hash = computeSha256Hash;
 exports.computeSha256Hmac = computeSha256Hmac;
 exports.createAbortablePromise = createAbortablePromise;
@@ -15616,6 +15577,7 @@ exports.isNode = isNode;
 exports.isObject = isObject;
 exports.isObjectWithProperties = isObjectWithProperties;
 exports.objectHasProperty = objectHasProperty;
+exports.randomUUID = randomUUID;
 //# sourceMappingURL=index.js.map
 
 
@@ -62078,12 +62040,12 @@ function defaultCallback(err) {
 __nccwpck_require__.d(__webpack_exports__, {
   "oc": () => (/* binding */ AbortActionError),
   "Eh": () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
+  "Ch": () => (/* binding */ binaryPackagesCountState),
+  "bj": () => (/* binding */ bytesToMibibytes),
   "GF": () => (/* binding */ cacheKeyState),
-  "vK": () => (/* binding */ computeHashOfBinaryPackage),
   "ZT": () => (/* binding */ errorAsString),
-  "PL": () => (/* binding */ findBinaryPackages),
+  "Ad": () => (/* binding */ findBinaryPackagesInDir),
   "j$": () => (/* binding */ getEnvVariable),
-  "c3": () => (/* binding */ latestBinaryPackageHashState),
   "ch": () => (/* binding */ mainStepSucceededState),
   "_$": () => (/* binding */ parseInputs),
   "Aq": () => (/* binding */ runMain)
@@ -62093,8 +62055,6 @@ __nccwpck_require__.d(__webpack_exports__, {
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
-// EXTERNAL MODULE: external "crypto"
-var external_crypto_ = __nccwpck_require__(6113);
 // EXTERNAL MODULE: external "fs/promises"
 var promises_ = __nccwpck_require__(3292);
 // EXTERNAL MODULE: external "path"
@@ -62106,9 +62066,8 @@ const external_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import
 
 
 
-
 const cacheKeyState = 'cacheKey';
-const latestBinaryPackageHashState = 'latestBinaryPackageHash';
+const binaryPackagesCountState = 'binaryPackagesCount';
 const mainStepSucceededState = 'mainStepSucceeded';
 function getInputVerbose(name, inputOptions) {
     const value = (0,core.getInput)(name, inputOptions);
@@ -62126,8 +62085,10 @@ function parseInputs() {
     const installCleanBuildtrees = getInputVerbose('install-clean-buildtrees', { required: false });
     const installCleanPackages = getInputVerbose('install-clean-packages', { required: false });
     const installCleanDownloads = getInputVerbose('install-clean-downloads', { required: false });
+    const overlayTripletsPath = getInputVerbose('overlay-triplets-path', { required: false });
     const binaryCachePath = getInputVerbose('binary-cache-path', { required: false });
     const saveCache = getInputVerbose('save-cache', { required: false });
+    const cacheKeyTag = getInputVerbose('cache-key-tag', { required: false });
     const inputs = {
         runSetup: runSetup === 'true',
         vcpkgRoot: vcpkgRoot,
@@ -62139,8 +62100,10 @@ function parseInputs() {
         installCleanBuildtrees: installCleanBuildtrees === 'true',
         installCleanPackages: installCleanPackages === 'true',
         installCleanDownloads: installCleanDownloads === 'true',
+        overlayTripletsPath: overlayTripletsPath,
         binaryCachePath: binaryCachePath,
-        saveCache: saveCache === 'true'
+        saveCache: saveCache === 'true',
+        cacheKeyTag: cacheKeyTag
     };
     if (inputs.runInstall && !triplet) {
         throw new AbortActionError('Triplet must be defined');
@@ -62168,34 +62131,23 @@ const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
 const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 // GitHub Actions environment variable for vcpkg root
 const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT';
-async function findBinaryPackagesInDir(dirPath, packages) {
+const ZIP_EXTENSION = '.zip';
+function isZipFile(fileName) {
+    return fileName.endsWith(ZIP_EXTENSION);
+}
+async function findBinaryPackagesInDir(dirPath, onFoundPackage) {
     const dir = await promises_.opendir(dirPath);
     for await (const dirent of dir) {
         if (dirent.isDirectory()) {
-            await findBinaryPackagesInDir(external_path_.join(dirPath, dirent.name), packages);
+            await findBinaryPackagesInDir(external_path_.join(dirPath, dirent.name), onFoundPackage);
         }
-        else if (dirent.isFile()) {
-            const filePath = external_path_.join(dirPath, dirent.name);
-            const stat = await promises_.stat(filePath);
-            packages.push({ filePath: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
+        else if (dirent.isFile() && isZipFile(dirent.name)) {
+            onFoundPackage(dirPath, dirent.name);
         }
     }
 }
-async function findBinaryPackages() {
-    const packages = [];
-    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), packages);
-    // Sort by mtime in descending order, so that oldest files are at the end
-    packages.sort((a, b) => {
-        return b.mtimeMs - a.mtimeMs;
-    });
-    return packages;
-}
-function computeHashOfBinaryPackage(pkg) {
-    const hash = (0,external_crypto_.createHash)('sha256');
-    hash.update(pkg.filePath);
-    hash.update(pkg.mtimeMs.toString());
-    hash.update(pkg.size.toString());
-    return hash.digest('hex');
+function bytesToMibibytes(bytes) {
+    return (bytes / (1024.0 * 1024.0));
 }
 class AbortActionError extends Error {
     constructor(message) {
@@ -62244,13 +62196,26 @@ __nccwpck_require__.d(__webpack_exports__, {
 const external_readline_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("readline");
 // EXTERNAL MODULE: ./node_modules/yauzl/index.js
 var yauzl = __nccwpck_require__(8781);
+// EXTERNAL MODULE: ./src/common.ts + 1 modules
+var common = __nccwpck_require__(304);
 ;// CONCATENATED MODULE: ./src/extractControl.ts
+
 
 
 const controlFileName = 'CONTROL';
 const packageNameKey = 'Package';
 const architectureKey = 'Architecture';
 const keyValueSeparator = ':';
+var PackageNameBrand;
+(function (PackageNameBrand) {
+    PackageNameBrand["_"] = "";
+})(PackageNameBrand || (PackageNameBrand = {}));
+;
+var ArchitectureBrand;
+(function (ArchitectureBrand) {
+    ArchitectureBrand["_"] = "";
+})(ArchitectureBrand || (ArchitectureBrand = {}));
+;
 async function extractBinaryPackageControl(pkg) {
     const zipfile = await new Promise((resolve, reject) => {
         yauzl/* open */.bA(pkg.filePath, { autoClose: true, lazyEntries: true }, (err, zipfile) => {
@@ -62322,9 +62287,10 @@ async function extractBinaryPackageControl(pkg) {
                 if (architecture === undefined) {
                     notFound.push(architectureKey);
                 }
-                reject(new Error(`${controlFileName} file doesn't contain required keys: ${notFound}`));
+                reject(new Error(`${controlFileName} file of archive ${pkg.filePath} doesn't contain required keys: ${notFound}`));
             });
         });
+        console.info(`Found binary package ${pkg.filePath} with name ${control.packageName}, architecture ${control.architecture}, size ${(0,common/* bytesToMibibytes */.bj)(pkg.size)} MiB and mtime ${pkg.mtime}`);
         return control;
     }
     finally {
@@ -62347,35 +62313,36 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __we
 /* harmony import */ var fs_promises__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__nccwpck_require__.n(fs_promises__WEBPACK_IMPORTED_MODULE_2__);
 /* harmony import */ var _common_js__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(304);
 /* harmony import */ var _extractControl_js__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(6331);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(1017);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__nccwpck_require__.n(path__WEBPACK_IMPORTED_MODULE_5__);
 
 
 
 
 
-function bytesToMibibytes(bytes) {
-    return (bytes / (1024.0 * 1024.0));
-}
-async function findBinaryPackagesAndComputeTotalSize() {
+
+async function findBinaryPackages() {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Searching packages in binary cache');
-    const packages = await (0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .findBinaryPackages */ .PL)();
-    let totalSize = packages.reduce((prev, cur) => prev + cur.size, 0);
-    console.info('Found', packages.length, 'cached packages, total size is', bytesToMibibytes(totalSize), 'MiB');
-    _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
+    const packages = [];
+    let totalSize = 0;
+    const statPackage = async (filePath) => {
+        const stat = await fs_promises__WEBPACK_IMPORTED_MODULE_2__.stat(filePath);
+        totalSize += stat.size;
+        packages.push({ filePath: filePath, size: stat.size, mtime: stat.mtime });
+    };
+    const statPromises = [];
+    await (0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .findBinaryPackagesInDir */ .Ad)((0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_3__/* .ENV_VCPKG_BINARY_CACHE */ .Eh), (dirPath, fileName) => {
+        statPromises.push(statPackage(path__WEBPACK_IMPORTED_MODULE_5___default().join(dirPath, fileName)));
+    });
+    await Promise.all(statPromises);
+    console.info(`Found ${packages.length} binary packages total size is ${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .bytesToMibibytes */ .bj)(totalSize)} MiB`);
     return packages;
 }
-function didLatestPackageChange(packages) {
-    const previousHash = _actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_3__/* .latestBinaryPackageHashState */ .c3);
-    console.info('Previous hash of latest binary package is', previousHash);
-    const latestBinaryPackage = packages.at(0);
-    console.info('Latest binary package is', latestBinaryPackage);
-    const hash = (0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .computeHashOfBinaryPackage */ .vK)(latestBinaryPackage);
-    console.info('Hash of latest binary package is', hash);
-    if (hash === previousHash) {
-        console.info('Hash of latest binary package did not change');
-        return false;
-    }
-    console.info('Hash of latest binary package changed');
-    return true;
+function areThereNewBinaryPackages(packages) {
+    const previousCount = parseInt(_actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_3__/* .binaryPackagesCountState */ .Ch));
+    console.info('Previous count of binary packages is', previousCount);
+    const binaryPackagesCount = packages.length;
+    return binaryPackagesCount !== previousCount;
 }
 function computeIfAbsent(map, key, mappingFunction) {
     let value = map.get(key);
@@ -62405,16 +62372,19 @@ async function removeOldVersions(packages) {
     const rmPromises = [];
     for (const [packageName, pkgsWithSameName] of identifiedPackages) {
         for (const [architecture, pkgsWithSameNameAndArch] of pkgsWithSameName) {
-            if (pkgsWithSameNameAndArch.length > 1) {
-                console.info('Removing older versions of package', packageName, 'with architecture', architecture, `(latest is ${pkgsWithSameNameAndArch.at(0)?.filePath})`);
-                // Packages are sorted from newest to oldest, remove old ones
-                while (pkgsWithSameNameAndArch.length > 1) {
-                    const pkg = pkgsWithSameNameAndArch.pop();
-                    console.info(' - Removing', pkg.filePath);
-                    rmPromises.push(fs_promises__WEBPACK_IMPORTED_MODULE_2__.rm(pkg.filePath));
-                    remainingPackages.delete(pkg);
-                }
+            // Sort by mtime in descending order, so that oldest files are at the end
+            pkgsWithSameNameAndArch.sort((a, b) => {
+                return b.mtime.getTime() - a.mtime.getTime();
+            });
+            console.info(`Packages with name ${packageName} and architecture ${architecture}:`);
+            while (pkgsWithSameNameAndArch.length > 1) {
+                const pkg = pkgsWithSameNameAndArch.pop();
+                console.info(` - Removing ${pkg.filePath}, with size ${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .bytesToMibibytes */ .bj)(pkg.size)} MiB and mtime ${pkg.mtime}`);
+                rmPromises.push(fs_promises__WEBPACK_IMPORTED_MODULE_2__.rm(pkg.filePath));
+                remainingPackages.delete(pkg);
             }
+            const last = pkgsWithSameNameAndArch.at(0);
+            console.info(` - Latest is ${last.filePath}, with size ${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .bytesToMibibytes */ .bj)(last.size)} MiB and mtime ${last.mtime}`);
         }
     }
     if (rmPromises.length > 0) {
@@ -62426,7 +62396,7 @@ async function removeOldVersions(packages) {
             throw new _common_js__WEBPACK_IMPORTED_MODULE_3__/* .AbortActionError */ .oc(`Failed to remove packages with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .errorAsString */ .ZT)(error)}'`);
         }
         let totalSize = [...remainingPackages].reduce((prev, cur) => prev + cur.size, 0);
-        console.info('New packages count is', remainingPackages.size, 'and total size is', bytesToMibibytes(totalSize), 'MiB');
+        console.info('New packages count is', remainingPackages.size, 'and total size is', (0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .bytesToMibibytes */ .bj)(totalSize), 'MiB');
     }
     else {
         console.info('Did not remove any packages');
@@ -62460,15 +62430,16 @@ async function main() {
         console.info('Cache saving is disabled, skip saving cache');
         return;
     }
-    const packages = await findBinaryPackagesAndComputeTotalSize();
+    const packages = await findBinaryPackages();
     if (packages.length == 0) {
         console.info('No binary packages, skip saving cache');
         return;
     }
-    if (!didLatestPackageChange(packages)) {
-        console.info('Latest binary package did not change, skip saving cache');
+    if (!areThereNewBinaryPackages(packages)) {
+        console.info('No new binary packages, skip saving cache');
         return;
     }
+    console.info('There are new binary packages');
     await removeOldVersions(packages);
     await saveCache();
 }

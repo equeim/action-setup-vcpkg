@@ -13891,6 +13891,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 var logger$1 = __nccwpck_require__(3233);
 var abortController = __nccwpck_require__(2557);
+var coreUtil = __nccwpck_require__(1333);
 
 // Copyright (c) Microsoft Corporation.
 /**
@@ -14139,7 +14140,7 @@ function transformStatus(inputs) {
         case "cancelled":
             return "canceled";
         default: {
-            logger.warning(`LRO: unrecognized operation status: ${status}`);
+            logger.verbose(`LRO: unrecognized operation status: ${status}`);
             return status;
         }
     }
@@ -14301,58 +14302,6 @@ async function pollHttpOperation(inputs) {
 }
 
 // Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-/**
- * Map an optional value through a function
- * @internal
- */
-const maybemap = (value, f) => value === undefined ? undefined : f(value);
-const INTERRUPTED = new Error("The poller is already stopped");
-/**
- * A promise that delays resolution until a certain amount of time (in milliseconds) has passed, with facilities for
- * robust cancellation.
- *
- * ### Example:
- *
- * ```javascript
- * let toCancel;
- *
- * // Wait 20 seconds, and optionally allow the function to be cancelled.
- * await delayMs(20000, (cancel) => { toCancel = cancel });
- *
- * // ... if `toCancel` is called before the 20 second timer expires, then the delayMs promise will reject.
- * ```
- *
- * @internal
- * @param ms - the number of milliseconds to wait before resolving
- * @param cb - a callback that can provide the caller with a cancellation function
- */
-function delayMs(ms) {
-    let aborted = false;
-    let toReject;
-    return Object.assign(new Promise((resolve, reject) => {
-        let token;
-        toReject = () => {
-            maybemap(token, clearTimeout);
-            reject(INTERRUPTED);
-        };
-        // In the rare case that the operation is _already_ aborted, we will reject instantly. This could happen, for
-        // example, if the user calls the cancellation function immediately without yielding execution.
-        if (aborted) {
-            toReject();
-        }
-        else {
-            token = setTimeout(resolve, ms);
-        }
-    }), {
-        cancel: () => {
-            aborted = true;
-            toReject === null || toReject === void 0 ? void 0 : toReject();
-        },
-    });
-}
-
-// Copyright (c) Microsoft Corporation.
 const createStateProxy$1 = () => ({
     /**
      * The state at this point is created to be of type OperationState<TResult>.
@@ -14404,7 +14353,6 @@ function buildCreatePoller(inputs) {
                 setErrorAsResult: !resolveOnUnsuccessful,
             });
         let resultPromise;
-        let cancelJob;
         const abortController$1 = new abortController.AbortController();
         const handlers = new Map();
         const handleProgressEvents = async () => handlers.forEach((h) => h(state));
@@ -14417,7 +14365,6 @@ function buildCreatePoller(inputs) {
             isStopped: () => resultPromise === undefined,
             stopPolling: () => {
                 abortController$1.abort();
-                cancelJob === null || cancelJob === void 0 ? void 0 : cancelJob();
             },
             toString: () => JSON.stringify({
                 state,
@@ -14435,9 +14382,7 @@ function buildCreatePoller(inputs) {
                 if (!poller.isDone()) {
                     await poller.poll({ abortSignal });
                     while (!poller.isDone()) {
-                        const delay = delayMs(currentPollIntervalInMs);
-                        cancelJob = delay.cancel;
-                        await delay;
+                        await coreUtil.delay(currentPollIntervalInMs, { abortSignal });
                         await poller.poll({ abortSignal });
                     }
                 }
@@ -15409,11 +15354,11 @@ var crypto = __nccwpck_require__(6113);
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-var _a;
+var _a$1;
 /**
  * A constant that indicates whether the environment the code is running is Node.JS.
  */
-const isNode = typeof process !== "undefined" && Boolean(process.version) && Boolean((_a = process.versions) === null || _a === void 0 ? void 0 : _a.node);
+const isNode = typeof process !== "undefined" && Boolean(process.version) && Boolean((_a$1 = process.versions) === null || _a$1 === void 0 ? void 0 : _a$1.node);
 
 // Copyright (c) Microsoft Corporation.
 /**
@@ -15604,6 +15549,22 @@ function objectHasProperty(thing, property) {
     return (isDefined(thing) && typeof thing === "object" && property in thing);
 }
 
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+var _a;
+// NOTE: This is a workaround until we can use `globalThis.crypto.randomUUID` in Node.js 19+.
+const uuidFunction = typeof ((_a = globalThis === null || globalThis === void 0 ? void 0 : globalThis.crypto) === null || _a === void 0 ? void 0 : _a.randomUUID) === "function"
+    ? globalThis.crypto.randomUUID.bind(globalThis.crypto)
+    : crypto.randomUUID;
+/**
+ * Generated Universally Unique Identifier
+ *
+ * @returns RFC4122 v4 UUID.
+ */
+function randomUUID() {
+    return uuidFunction();
+}
+
 exports.computeSha256Hash = computeSha256Hash;
 exports.computeSha256Hmac = computeSha256Hmac;
 exports.createAbortablePromise = createAbortablePromise;
@@ -15616,6 +15577,7 @@ exports.isNode = isNode;
 exports.isObject = isObject;
 exports.isObjectWithProperties = isObjectWithProperties;
 exports.objectHasProperty = objectHasProperty;
+exports.randomUUID = randomUUID;
 //# sourceMappingURL=index.js.map
 
 
@@ -60793,21 +60755,20 @@ __nccwpck_require__.d(__webpack_exports__, {
   "Eh": () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
   "uI": () => (/* binding */ ENV_VCPKG_INSTALLATION_ROOT),
   "YV": () => (/* binding */ ENV_VCPKG_ROOT),
+  "Ch": () => (/* binding */ binaryPackagesCountState),
   "GF": () => (/* binding */ cacheKeyState),
-  "vK": () => (/* binding */ computeHashOfBinaryPackage),
   "ZT": () => (/* binding */ errorAsString),
-  "PL": () => (/* binding */ findBinaryPackages),
+  "Ad": () => (/* binding */ findBinaryPackagesInDir),
   "j$": () => (/* binding */ getEnvVariable),
-  "c3": () => (/* binding */ latestBinaryPackageHashState),
   "ch": () => (/* binding */ mainStepSucceededState),
   "_$": () => (/* binding */ parseInputs),
   "Aq": () => (/* binding */ runMain)
 });
 
+// UNUSED EXPORTS: bytesToMibibytes
+
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
-// EXTERNAL MODULE: external "crypto"
-var external_crypto_ = __nccwpck_require__(6113);
 // EXTERNAL MODULE: external "fs/promises"
 var promises_ = __nccwpck_require__(3292);
 // EXTERNAL MODULE: external "path"
@@ -60819,9 +60780,8 @@ const external_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import
 
 
 
-
 const cacheKeyState = 'cacheKey';
-const latestBinaryPackageHashState = 'latestBinaryPackageHash';
+const binaryPackagesCountState = 'binaryPackagesCount';
 const mainStepSucceededState = 'mainStepSucceeded';
 function getInputVerbose(name, inputOptions) {
     const value = (0,core.getInput)(name, inputOptions);
@@ -60839,8 +60799,10 @@ function parseInputs() {
     const installCleanBuildtrees = getInputVerbose('install-clean-buildtrees', { required: false });
     const installCleanPackages = getInputVerbose('install-clean-packages', { required: false });
     const installCleanDownloads = getInputVerbose('install-clean-downloads', { required: false });
+    const overlayTripletsPath = getInputVerbose('overlay-triplets-path', { required: false });
     const binaryCachePath = getInputVerbose('binary-cache-path', { required: false });
     const saveCache = getInputVerbose('save-cache', { required: false });
+    const cacheKeyTag = getInputVerbose('cache-key-tag', { required: false });
     const inputs = {
         runSetup: runSetup === 'true',
         vcpkgRoot: vcpkgRoot,
@@ -60852,8 +60814,10 @@ function parseInputs() {
         installCleanBuildtrees: installCleanBuildtrees === 'true',
         installCleanPackages: installCleanPackages === 'true',
         installCleanDownloads: installCleanDownloads === 'true',
+        overlayTripletsPath: overlayTripletsPath,
         binaryCachePath: binaryCachePath,
-        saveCache: saveCache === 'true'
+        saveCache: saveCache === 'true',
+        cacheKeyTag: cacheKeyTag
     };
     if (inputs.runInstall && !triplet) {
         throw new AbortActionError('Triplet must be defined');
@@ -60881,34 +60845,23 @@ const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
 const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 // GitHub Actions environment variable for vcpkg root
 const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT';
-async function findBinaryPackagesInDir(dirPath, packages) {
+const ZIP_EXTENSION = '.zip';
+function isZipFile(fileName) {
+    return fileName.endsWith(ZIP_EXTENSION);
+}
+async function findBinaryPackagesInDir(dirPath, onFoundPackage) {
     const dir = await promises_.opendir(dirPath);
     for await (const dirent of dir) {
         if (dirent.isDirectory()) {
-            await findBinaryPackagesInDir(external_path_.join(dirPath, dirent.name), packages);
+            await findBinaryPackagesInDir(external_path_.join(dirPath, dirent.name), onFoundPackage);
         }
-        else if (dirent.isFile()) {
-            const filePath = external_path_.join(dirPath, dirent.name);
-            const stat = await promises_.stat(filePath);
-            packages.push({ filePath: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
+        else if (dirent.isFile() && isZipFile(dirent.name)) {
+            onFoundPackage(dirPath, dirent.name);
         }
     }
 }
-async function findBinaryPackages() {
-    const packages = [];
-    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), packages);
-    // Sort by mtime in descending order, so that oldest files are at the end
-    packages.sort((a, b) => {
-        return b.mtimeMs - a.mtimeMs;
-    });
-    return packages;
-}
-function computeHashOfBinaryPackage(pkg) {
-    const hash = (0,external_crypto_.createHash)('sha256');
-    hash.update(pkg.filePath);
-    hash.update(pkg.mtimeMs.toString());
-    hash.update(pkg.size.toString());
-    return hash.digest('hex');
+function bytesToMibibytes(bytes) {
+    return (bytes / (1024.0 * 1024.0));
 }
 class AbortActionError extends Error {
     constructor(message) {
@@ -60991,6 +60944,14 @@ async function execCommand(command, args, shell) {
         throw new _common_js__WEBPACK_IMPORTED_MODULE_7__/* .AbortActionError */ .oc(`Command '${command}' failed with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .errorAsString */ .ZT)(error)}'`);
     }
 }
+async function countBinaryPackages() {
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Counting packages in binary cache');
+    let count = 0;
+    await (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .findBinaryPackagesInDir */ .Ad)((0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_BINARY_CACHE */ .Eh), (_dirPath, _fileName) => {
+        ++count;
+    });
+    return count;
+}
 async function restoreCache(inputs) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Restore cache');
     let fromEnv = false;
@@ -61027,25 +60988,21 @@ async function restoreCache(inputs) {
      * last part of key is random so that exact matches never occur and cache is upload
      * only if vcpkg actually created new binary packages
      */
-    const key = `vcpkg-${runnerOs}-${(0,crypto__WEBPACK_IMPORTED_MODULE_3__.randomBytes)(32).toString('hex')}`;
+    let restoreKey = `vcpkg|RUNNER_OS=${runnerOs}|`;
+    if (inputs.cacheKeyTag) {
+        restoreKey += `tag=${inputs.cacheKeyTag}|`;
+    }
+    console.info('Cache restore key is', restoreKey);
+    const key = `${restoreKey}random=${(0,crypto__WEBPACK_IMPORTED_MODULE_3__.randomBytes)(32).toString('hex')}`;
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .cacheKeyState */ .GF, key);
     console.info('Cache key is', key);
-    const restoreKeys = [`vcpkg-${runnerOs}-`];
-    console.info('Cache restore keys are', restoreKeys);
     try {
-        const hitKey = await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.restoreCache([cacheDir], key, restoreKeys);
+        const hitKey = await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.restoreCache([cacheDir], key, [restoreKey]);
         if (hitKey != null) {
             console.info('Cache hit on key', hitKey);
-            const latestBinaryPackage = (await (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .findBinaryPackages */ .PL)()).at(0);
-            if (latestBinaryPackage != null) {
-                console.info('Latest binary package is', latestBinaryPackage);
-                const hash = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .computeHashOfBinaryPackage */ .vK)(latestBinaryPackage);
-                console.info('Hash of latest binary package is', hash);
-                _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .latestBinaryPackageHashState */ .c3, hash);
-            }
-            else {
-                console.info('No binary packages');
-            }
+            const binaryPackagesCount = (await countBinaryPackages());
+            _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .binaryPackagesCountState */ .Ch, binaryPackagesCount.toString());
+            console.info('Binary packages count is', binaryPackagesCount);
         }
         else {
             console.info('Cache miss');
@@ -61161,6 +61118,9 @@ async function runVcpkgInstall(inputs, vcpkgRoot) {
     }
     for (const feature of inputs.installFeatures) {
         args.push(`--x-feature=${feature}`);
+    }
+    if (inputs.overlayTripletsPath) {
+        args.push(`--overlay-triplets=${inputs.overlayTripletsPath}`);
     }
     await execCommand(path__WEBPACK_IMPORTED_MODULE_6__.join(vcpkgRoot, 'vcpkg'), args);
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
