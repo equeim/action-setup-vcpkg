@@ -1,3 +1,4 @@
+import * as core from '@actions/core';
 import { getInput, InputOptions, setFailed } from '@actions/core';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -31,6 +32,7 @@ function getInputVerbose(name: string, inputOptions: InputOptions): string {
 }
 
 export function parseInputs(): Inputs {
+    core.startGroup('Parsing action inputs');
     const runSetup = getInputVerbose('run-setup', { required: false });
     const vcpkgRoot = getInputVerbose('vcpkg-root', { required: false });
     const runInstall = getInputVerbose('run-install', { required: false });
@@ -64,6 +66,7 @@ export function parseInputs(): Inputs {
     if (inputs.runInstall && !triplet) {
         throw new AbortActionError('Triplet must be defined');
     }
+    core.endGroup();
     return inputs;
 }
 

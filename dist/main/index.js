@@ -60782,6 +60782,7 @@ const external_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import
 
 
 
+
 const cacheKeyState = 'cacheKey';
 const binaryPackagesCountState = 'binaryPackagesCount';
 const mainStepSucceededState = 'mainStepSucceeded';
@@ -60791,6 +60792,7 @@ function getInputVerbose(name, inputOptions) {
     return value;
 }
 function parseInputs() {
+    core.startGroup('Parsing action inputs');
     const runSetup = getInputVerbose('run-setup', { required: false });
     const vcpkgRoot = getInputVerbose('vcpkg-root', { required: false });
     const runInstall = getInputVerbose('run-install', { required: false });
@@ -60824,6 +60826,7 @@ function parseInputs() {
     if (inputs.runInstall && !triplet) {
         throw new AbortActionError('Triplet must be defined');
     }
+    core.endGroup();
     return inputs;
 }
 function getEnvVariable(name, required = true) {
@@ -61015,43 +61018,43 @@ async function restoreCache(inputs) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
 }
 function resolveVcpkgRoot(inputs) {
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Determining vcpkg root directory');
     let exportEnv = true;
     let vcpkgRoot = inputs.vcpkgRoot;
     if (vcpkgRoot) {
-        console.info('Using vcpkg root path from action inputs');
+        console.info('Using vcpkg root directory path from action inputs');
     }
     else {
         vcpkgRoot = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV, false);
         if (vcpkgRoot) {
-            console.info(`Using vcpkg root path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV} environment variable`);
+            console.info(`Using vcpkg root directory path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV} environment variable`);
             exportEnv = false;
         }
         else {
             vcpkgRoot = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uI, false);
             if (vcpkgRoot) {
-                console.info(`Using vcpkg root path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uI} environment variable`);
+                console.info(`Using vcpkg root directory path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uI} environment variable`);
             }
             else {
-                console.info('Using default vcpkg root path');
+                console.info('Using default vcpkg root directory path');
                 vcpkgRoot = 'vcpkg';
             }
         }
     }
     vcpkgRoot = path__WEBPACK_IMPORTED_MODULE_6__.resolve(vcpkgRoot);
-    console.info('Vcpkg root path is', vcpkgRoot);
+    console.info('Vcpkg root directory path is', vcpkgRoot);
     if (exportEnv) {
         _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV, vcpkgRoot);
     }
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
     return vcpkgRoot;
 }
 async function extractVcpkgCommit() {
     try {
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Extract vcpkg commit');
         const vcpkgConfigurationData = await fs_promises__WEBPACK_IMPORTED_MODULE_4__.readFile('vcpkg-configuration.json', { encoding: 'utf-8' });
         const commit = JSON.parse(vcpkgConfigurationData)['default-registry']['baseline'];
         if (typeof (commit) === 'string') {
             console.info('Vcpkg commit is', commit);
-            _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
             return commit;
         }
         throw new Error('Failed to extract commit from parsed JSON');

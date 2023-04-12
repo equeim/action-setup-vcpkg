@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AbortActionError, binaryPackagesCountState, cacheKeyState, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, errorAsString, findBinaryPackagesInDir, getEnvVariable, Inputs, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, Inputs, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
 
 
 async function execProcess(process: ChildProcess) {
@@ -101,41 +101,41 @@ async function restoreCache(inputs: Inputs) {
 }
 
 function resolveVcpkgRoot(inputs: Inputs): string {
+    core.startGroup('Determining vcpkg root directory');
     let exportEnv = true;
     let vcpkgRoot: string | undefined = inputs.vcpkgRoot;
     if (vcpkgRoot) {
-        console.info('Using vcpkg root path from action inputs');
+        console.info('Using vcpkg root directory path from action inputs');
     } else {
         vcpkgRoot = getEnvVariable(ENV_VCPKG_ROOT, false);
         if (vcpkgRoot) {
-            console.info(`Using vcpkg root path from ${ENV_VCPKG_ROOT} environment variable`);
+            console.info(`Using vcpkg root directory path from ${ENV_VCPKG_ROOT} environment variable`);
             exportEnv = false;
         } else {
             vcpkgRoot = getEnvVariable(ENV_VCPKG_INSTALLATION_ROOT, false);
             if (vcpkgRoot) {
-                console.info(`Using vcpkg root path from ${ENV_VCPKG_INSTALLATION_ROOT} environment variable`);
+                console.info(`Using vcpkg root directory path from ${ENV_VCPKG_INSTALLATION_ROOT} environment variable`);
             } else {
-                console.info('Using default vcpkg root path');
+                console.info('Using default vcpkg root directory path');
                 vcpkgRoot = 'vcpkg';
             }
         }
     }
     vcpkgRoot = path.resolve(vcpkgRoot);
-    console.info('Vcpkg root path is', vcpkgRoot);
+    console.info('Vcpkg root directory path is', vcpkgRoot);
     if (exportEnv) {
         core.exportVariable(ENV_VCPKG_ROOT, vcpkgRoot);
     }
+    core.endGroup();
     return vcpkgRoot;
 }
 
 async function extractVcpkgCommit(): Promise<string> {
     try {
-        core.startGroup('Extract vcpkg commit');
         const vcpkgConfigurationData = await fs.readFile('vcpkg-configuration.json', { encoding: 'utf-8' });
         const commit = JSON.parse(vcpkgConfigurationData)['default-registry']['baseline'];
         if (typeof (commit) === 'string') {
             console.info('Vcpkg commit is', commit);
-            core.endGroup();
             return commit;
         }
         throw new Error('Failed to extract commit from parsed JSON');

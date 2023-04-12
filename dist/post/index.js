@@ -62069,6 +62069,7 @@ const external_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import
 
 
 
+
 const cacheKeyState = 'cacheKey';
 const binaryPackagesCountState = 'binaryPackagesCount';
 const mainStepSucceededState = 'mainStepSucceeded';
@@ -62078,6 +62079,7 @@ function getInputVerbose(name, inputOptions) {
     return value;
 }
 function parseInputs() {
+    core.startGroup('Parsing action inputs');
     const runSetup = getInputVerbose('run-setup', { required: false });
     const vcpkgRoot = getInputVerbose('vcpkg-root', { required: false });
     const runInstall = getInputVerbose('run-install', { required: false });
@@ -62111,6 +62113,7 @@ function parseInputs() {
     if (inputs.runInstall && !triplet) {
         throw new AbortActionError('Triplet must be defined');
     }
+    core.endGroup();
     return inputs;
 }
 function getEnvVariable(name, required = true) {
@@ -62307,10 +62310,10 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __we
 /* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__nccwpck_require__.n(_actions_core__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var fs_promises__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(3292);
 /* harmony import */ var fs_promises__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__nccwpck_require__.n(fs_promises__WEBPACK_IMPORTED_MODULE_2__);
-/* harmony import */ var _common_js__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(304);
-/* harmony import */ var _extractControl_js__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(6331);
-/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(1017);
-/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__nccwpck_require__.n(path__WEBPACK_IMPORTED_MODULE_5__);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(1017);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__nccwpck_require__.n(path__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var _common_js__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(304);
+/* harmony import */ var _extractControl_js__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(6331);
 
 
 
@@ -62330,15 +62333,15 @@ async function findBinaryPackages() {
         packages.push({ filePath: filePath, size: stat.size, mtime: stat.mtime });
     };
     const statPromises = [];
-    await (0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .findBinaryPackagesInDir */ .Ad)((0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_3__/* .ENV_VCPKG_BINARY_CACHE */ .Eh), (dirPath, fileName) => {
-        statPromises.push(statPackage(path__WEBPACK_IMPORTED_MODULE_5___default().join(dirPath, fileName)));
+    await (0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .findBinaryPackagesInDir */ .Ad)((0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_4__/* .ENV_VCPKG_BINARY_CACHE */ .Eh), (dirPath, fileName) => {
+        statPromises.push(statPackage(path__WEBPACK_IMPORTED_MODULE_3___default().join(dirPath, fileName)));
     });
     await Promise.all(statPromises);
     console.info(`Found ${packages.length} binary packages total size is ${bytesToMibibytesString(totalSize)}`);
     return packages;
 }
 function areThereNewBinaryPackages(packages) {
-    const previousCount = parseInt(_actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_3__/* .binaryPackagesCountState */ .Ch));
+    const previousCount = parseInt(_actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_4__/* .binaryPackagesCountState */ .Ch));
     console.info('Previous count of binary packages is', previousCount);
     const binaryPackagesCount = packages.length;
     return binaryPackagesCount !== previousCount;
@@ -62356,7 +62359,7 @@ async function removeOldVersions(packages) {
     const identifiedPackages = new Map();
     for (const pkg of packages) {
         try {
-            const control = await (0,_extractControl_js__WEBPACK_IMPORTED_MODULE_4__/* .extractBinaryPackageControl */ .C)(pkg);
+            const control = await (0,_extractControl_js__WEBPACK_IMPORTED_MODULE_5__/* .extractBinaryPackageControl */ .C)(pkg);
             const pkgsWithSameName = computeIfAbsent(identifiedPackages, control.packageName, () => {
                 return new Map();
             });
@@ -62392,7 +62395,7 @@ async function removeOldVersions(packages) {
         }
         catch (error) {
             console.error(error);
-            throw new _common_js__WEBPACK_IMPORTED_MODULE_3__/* .AbortActionError */ .oc(`Failed to remove packages with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .errorAsString */ .ZT)(error)}'`);
+            throw new _common_js__WEBPACK_IMPORTED_MODULE_4__/* .AbortActionError */ .oc(`Failed to remove packages with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .errorAsString */ .ZT)(error)}'`);
         }
         let totalSize = [...remainingPackages].reduce((prev, cur) => prev + cur.size, 0);
         console.info('New packages count is', remainingPackages.size, 'and total size is', bytesToMibibytesString(totalSize));
@@ -62404,27 +62407,27 @@ async function removeOldVersions(packages) {
 }
 async function saveCache() {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Saving cache');
-    const key = _actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_3__/* .cacheKeyState */ .GF);
+    const key = _actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_4__/* .cacheKeyState */ .GF);
     if (!key) {
-        throw new _common_js__WEBPACK_IMPORTED_MODULE_3__/* .AbortActionError */ .oc('Cache key is not set');
+        throw new _common_js__WEBPACK_IMPORTED_MODULE_4__/* .AbortActionError */ .oc('Cache key is not set');
     }
     console.info('Saving cache with key', key);
     try {
-        await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.saveCache([(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_3__/* .ENV_VCPKG_BINARY_CACHE */ .Eh)], key);
+        await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.saveCache([(0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_4__/* .ENV_VCPKG_BINARY_CACHE */ .Eh)], key);
     }
     catch (error) {
         console.error(error);
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.error(`Failed to save cache with error ${(0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .errorAsString */ .ZT)(error)}`);
+        _actions_core__WEBPACK_IMPORTED_MODULE_1__.error(`Failed to save cache with error ${(0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .errorAsString */ .ZT)(error)}`);
     }
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
 }
 async function main() {
-    const mainStepSucceeded = _actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_3__/* .mainStepSucceededState */ .ch);
+    const mainStepSucceeded = _actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_4__/* .mainStepSucceededState */ .ch);
     if (mainStepSucceeded !== 'true') {
         console.info('Main step did not succeed, skip saving cache');
         return;
     }
-    const inputs = (0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .parseInputs */ ._$)();
+    const inputs = (0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .parseInputs */ ._$)();
     if (!inputs.saveCache) {
         console.info('Cache saving is disabled, skip saving cache');
         return;
@@ -62442,7 +62445,7 @@ async function main() {
     await removeOldVersions(packages);
     await saveCache();
 }
-await (0,_common_js__WEBPACK_IMPORTED_MODULE_3__/* .runMain */ .Aq)(main);
+await (0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .runMain */ .Aq)(main);
 
 __webpack_async_result__();
 } catch(e) { __webpack_async_result__(e); } }, 1);

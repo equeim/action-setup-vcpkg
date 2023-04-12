@@ -1,9 +1,9 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
+import path from 'path';
 import { AbortActionError, BinaryPackage, binaryPackagesCountState, cacheKeyState, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
 import { Architecture, extractBinaryPackageControl, PackageName } from './extractControl.js';
-import path from 'path';
 
 function bytesToMibibytesString(bytes: number): string {
     return (bytes / (1024.0 * 1024.0)).toFixed(2) + ' MiB';
