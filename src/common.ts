@@ -89,7 +89,13 @@ export function getEnvVariable(name: string, required: boolean = true): string |
     return value;
 }
 
+export function setEnvVariable(name: string, value: string) {
+    console.info('Setting environment variable', name, 'to value', value);
+    core.exportVariable(name, value);
+}
+
 export const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT' as const;
+export const ENV_VCPKG_ROOT = 'VCPKG_ROOT' as const;
 export const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE' as const;
 
 export type BinaryPackage = {

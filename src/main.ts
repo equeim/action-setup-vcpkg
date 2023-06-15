@@ -4,7 +4,7 @@ import { ChildProcess, SpawnOptions, spawn } from 'child_process';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AbortActionError, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, Inputs, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, Inputs, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain, setEnvVariable } from './common.js';
 
 
 async function execProcess(process: ChildProcess) {
@@ -63,7 +63,7 @@ async function restoreCache(inputs: Inputs) {
     cacheDir = path.resolve(cacheDir);
     console.info('Vcpkg binary cache path is', cacheDir);
     if (!fromEnv) {
-        core.exportVariable(ENV_VCPKG_BINARY_CACHE, cacheDir);
+        setEnvVariable(ENV_VCPKG_BINARY_CACHE, cacheDir);
     }
     try {
         await fs.mkdir(cacheDir, { recursive: true });
@@ -124,6 +124,7 @@ function resolveVcpkgRoot(inputs: Inputs): string {
     }
     vcpkgRoot = path.resolve(vcpkgRoot);
     console.info('Vcpkg root directory path is', vcpkgRoot);
+    setEnvVariable(ENV_VCPKG_ROOT, vcpkgRoot);
     core.endGroup();
     return vcpkgRoot;
 }
