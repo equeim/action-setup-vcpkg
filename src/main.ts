@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AbortActionError, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, Inputs, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_BINARY_CACHE, Inputs, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
 
 
 async function execProcess(process: ChildProcess) {
@@ -108,30 +108,20 @@ async function restoreCache(inputs: Inputs) {
 
 function resolveVcpkgRoot(inputs: Inputs): string {
     core.startGroup('Determining vcpkg root directory');
-    let exportEnv = true;
     let vcpkgRoot: string | undefined = inputs.vcpkgRoot;
     if (vcpkgRoot) {
         console.info('Using vcpkg root directory path from action inputs');
     } else {
-        vcpkgRoot = getEnvVariable(ENV_VCPKG_ROOT, false);
+        vcpkgRoot = getEnvVariable(ENV_VCPKG_INSTALLATION_ROOT, false);
         if (vcpkgRoot) {
-            console.info(`Using vcpkg root directory path from ${ENV_VCPKG_ROOT} environment variable`);
-            exportEnv = false;
+            console.info(`Using vcpkg root directory path from ${ENV_VCPKG_INSTALLATION_ROOT} environment variable`);
         } else {
-            vcpkgRoot = getEnvVariable(ENV_VCPKG_INSTALLATION_ROOT, false);
-            if (vcpkgRoot) {
-                console.info(`Using vcpkg root directory path from ${ENV_VCPKG_INSTALLATION_ROOT} environment variable`);
-            } else {
-                console.info('Using default vcpkg root directory path');
-                vcpkgRoot = 'vcpkg';
-            }
+            console.info('Using default vcpkg root directory path');
+            vcpkgRoot = 'vcpkg';
         }
     }
     vcpkgRoot = path.resolve(vcpkgRoot);
     console.info('Vcpkg root directory path is', vcpkgRoot);
-    if (exportEnv) {
-        core.exportVariable(ENV_VCPKG_ROOT, vcpkgRoot);
-    }
     core.endGroup();
     return vcpkgRoot;
 }
