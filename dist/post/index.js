@@ -62054,10 +62054,10 @@ __nccwpck_require__.d(__webpack_exports__, {
   "Aq": () => (/* binding */ runMain)
 });
 
-// UNUSED EXPORTS: ENV_VCPKG_INSTALLATION_ROOT
+// UNUSED EXPORTS: ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, setEnvVariable
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
-var core = __nccwpck_require__(2186);
+var lib_core = __nccwpck_require__(2186);
 // EXTERNAL MODULE: external "fs/promises"
 var promises_ = __nccwpck_require__(3292);
 // EXTERNAL MODULE: external "path"
@@ -62074,12 +62074,12 @@ const cacheKeyState = 'cacheKey';
 const binaryPackagesCountState = 'binaryPackagesCount';
 const mainStepSucceededState = 'mainStepSucceeded';
 function getInputVerbose(name, inputOptions) {
-    const value = (0,core.getInput)(name, inputOptions);
+    const value = (0,lib_core.getInput)(name, inputOptions);
     console.info(`Inputs: ${name} is ${value}`);
     return value;
 }
 function parseInputs() {
-    core.startGroup('Parsing action inputs');
+    lib_core.startGroup('Parsing action inputs');
     const runSetup = getInputVerbose('run-setup', { required: false });
     const vcpkgRoot = getInputVerbose('vcpkg-root', { required: false });
     const runInstall = getInputVerbose('run-install', { required: false });
@@ -62113,7 +62113,7 @@ function parseInputs() {
     if (inputs.runInstall && !triplet) {
         throw new AbortActionError('Triplet must be defined');
     }
-    core.endGroup();
+    lib_core.endGroup();
     return inputs;
 }
 function getEnvVariable(name, required = true) {
@@ -62132,7 +62132,12 @@ function getEnvVariable(name, required = true) {
     }
     return value;
 }
+function setEnvVariable(name, value) {
+    console.info('Setting environment variable', name, 'to value', value);
+    core.exportVariable(name, value);
+}
 const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT';
+const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
 const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 const ZIP_EXTENSION = '.zip';
 function isZipFile(fileName) {
@@ -62176,7 +62181,7 @@ async function runMain(block) {
             console.error(error);
             message = `!!! Unhandled exception ${error}`;
         }
-        (0,core.setFailed)(message);
+        (0,lib_core.setFailed)(message);
     }
 }
 

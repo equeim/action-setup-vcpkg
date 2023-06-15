@@ -60758,6 +60758,7 @@ __nccwpck_require__.d(__webpack_exports__, {
   "oc": () => (/* binding */ AbortActionError),
   "Eh": () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
   "uI": () => (/* binding */ ENV_VCPKG_INSTALLATION_ROOT),
+  "YV": () => (/* binding */ ENV_VCPKG_ROOT),
   "Ch": () => (/* binding */ binaryPackagesCountState),
   "GF": () => (/* binding */ cacheKeyState),
   "ZT": () => (/* binding */ errorAsString),
@@ -60765,7 +60766,8 @@ __nccwpck_require__.d(__webpack_exports__, {
   "j$": () => (/* binding */ getEnvVariable),
   "ch": () => (/* binding */ mainStepSucceededState),
   "_$": () => (/* binding */ parseInputs),
-  "Aq": () => (/* binding */ runMain)
+  "Aq": () => (/* binding */ runMain),
+  "T9": () => (/* binding */ setEnvVariable)
 });
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
@@ -60844,7 +60846,12 @@ function getEnvVariable(name, required = true) {
     }
     return value;
 }
+function setEnvVariable(name, value) {
+    console.info('Setting environment variable', name, 'to value', value);
+    core.exportVariable(name, value);
+}
 const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT';
+const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
 const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 const ZIP_EXTENSION = '.zip';
 function isZipFile(fileName) {
@@ -60974,7 +60981,7 @@ async function restoreCache(inputs) {
     cacheDir = path__WEBPACK_IMPORTED_MODULE_5__.resolve(cacheDir);
     console.info('Vcpkg binary cache path is', cacheDir);
     if (!fromEnv) {
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable(_common_js__WEBPACK_IMPORTED_MODULE_6__/* .ENV_VCPKG_BINARY_CACHE */ .Eh, cacheDir);
+        (0,_common_js__WEBPACK_IMPORTED_MODULE_6__/* .setEnvVariable */ .T9)(_common_js__WEBPACK_IMPORTED_MODULE_6__/* .ENV_VCPKG_BINARY_CACHE */ .Eh, cacheDir);
     }
     try {
         await fs_promises__WEBPACK_IMPORTED_MODULE_3__.mkdir(cacheDir, { recursive: true });
@@ -61038,6 +61045,7 @@ function resolveVcpkgRoot(inputs) {
     }
     vcpkgRoot = path__WEBPACK_IMPORTED_MODULE_5__.resolve(vcpkgRoot);
     console.info('Vcpkg root directory path is', vcpkgRoot);
+    (0,_common_js__WEBPACK_IMPORTED_MODULE_6__/* .setEnvVariable */ .T9)(_common_js__WEBPACK_IMPORTED_MODULE_6__/* .ENV_VCPKG_ROOT */ .YV, vcpkgRoot);
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
     return vcpkgRoot;
 }
