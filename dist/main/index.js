@@ -60758,7 +60758,6 @@ __nccwpck_require__.d(__webpack_exports__, {
   "oc": () => (/* binding */ AbortActionError),
   "Eh": () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
   "uI": () => (/* binding */ ENV_VCPKG_INSTALLATION_ROOT),
-  "YV": () => (/* binding */ ENV_VCPKG_ROOT),
   "Ch": () => (/* binding */ binaryPackagesCountState),
   "GF": () => (/* binding */ cacheKeyState),
   "ZT": () => (/* binding */ errorAsString),
@@ -60845,11 +60844,8 @@ function getEnvVariable(name, required = true) {
     }
     return value;
 }
-// Standard vcpkg environment variables
-const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
-const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
-// GitHub Actions environment variable for vcpkg root
 const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT';
+const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 const ZIP_EXTENSION = '.zip';
 function isZipFile(fileName) {
     return fileName.endsWith(ZIP_EXTENSION);
@@ -60935,10 +60931,16 @@ async function execProcess(process) {
         throw new Error(`Command exited with exit code ${exitCode}`);
     }
 }
-async function execCommand(command, args, shell) {
+async function execCommand(command, args, options) {
     console.info('Executing command', command, 'with arguments', args);
+    if (!options) {
+        options = {};
+    }
+    if (!options.stdio) {
+        options.stdio = 'inherit';
+    }
     try {
-        const child = (0,child_process__WEBPACK_IMPORTED_MODULE_2__.spawn)(command, args, { stdio: 'inherit', shell: shell ?? false });
+        const child = (0,child_process__WEBPACK_IMPORTED_MODULE_2__.spawn)(command, args, options);
         await execProcess(child);
     }
     catch (error) {
@@ -61019,33 +61021,22 @@ async function restoreCache(inputs) {
 }
 function resolveVcpkgRoot(inputs) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Determining vcpkg root directory');
-    let exportEnv = true;
     let vcpkgRoot = inputs.vcpkgRoot;
     if (vcpkgRoot) {
         console.info('Using vcpkg root directory path from action inputs');
     }
     else {
-        vcpkgRoot = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV, false);
+        vcpkgRoot = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uI, false);
         if (vcpkgRoot) {
-            console.info(`Using vcpkg root directory path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV} environment variable`);
-            exportEnv = false;
+            console.info(`Using vcpkg root directory path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uI} environment variable`);
         }
         else {
-            vcpkgRoot = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uI, false);
-            if (vcpkgRoot) {
-                console.info(`Using vcpkg root directory path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uI} environment variable`);
-            }
-            else {
-                console.info('Using default vcpkg root directory path');
-                vcpkgRoot = 'vcpkg';
-            }
+            console.info('Using default vcpkg root directory path');
+            vcpkgRoot = 'vcpkg';
         }
     }
     vcpkgRoot = path__WEBPACK_IMPORTED_MODULE_6__.resolve(vcpkgRoot);
     console.info('Vcpkg root directory path is', vcpkgRoot);
-    if (exportEnv) {
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__.exportVariable(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .YV, vcpkgRoot);
-    }
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
     return vcpkgRoot;
 }
@@ -61084,13 +61075,15 @@ async function setupVcpkg(vcpkgRoot) {
         await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
     }
     let bootstrapScript;
+    let spawnOptions = {};
     if (os__WEBPACK_IMPORTED_MODULE_5__.platform() == 'win32') {
         bootstrapScript = 'bootstrap-vcpkg.bat';
+        spawnOptions.shell = true;
     }
     else {
         bootstrapScript = 'bootstrap-vcpkg.sh';
     }
-    await execCommand(path__WEBPACK_IMPORTED_MODULE_6__.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], true);
+    await execCommand(path__WEBPACK_IMPORTED_MODULE_6__.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], spawnOptions);
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
     return vcpkgRoot;
 }

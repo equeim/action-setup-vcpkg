@@ -62054,7 +62054,7 @@ __nccwpck_require__.d(__webpack_exports__, {
   "Aq": () => (/* binding */ runMain)
 });
 
-// UNUSED EXPORTS: ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT
+// UNUSED EXPORTS: ENV_VCPKG_INSTALLATION_ROOT
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
@@ -62132,11 +62132,8 @@ function getEnvVariable(name, required = true) {
     }
     return value;
 }
-// Standard vcpkg environment variables
-const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
-const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
-// GitHub Actions environment variable for vcpkg root
 const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT';
+const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 const ZIP_EXTENSION = '.zip';
 function isZipFile(fileName) {
     return fileName.endsWith(ZIP_EXTENSION);
