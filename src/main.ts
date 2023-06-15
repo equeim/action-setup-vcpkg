@@ -1,11 +1,10 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import { ChildProcess, SpawnOptions, spawn } from 'child_process';
-import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { AbortActionError, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_BINARY_CACHE, Inputs, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, Inputs, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
 
 
 async function execProcess(process: ChildProcess) {
@@ -73,18 +72,21 @@ async function restoreCache(inputs: Inputs) {
         throw new AbortActionError(`Failed to create cache directory with error ${errorAsString(error)}`);
     }
 
-    const runnerOs = getEnvVariable('RUNNER_OS');
     /**
      * Since there is no reliable way to know whether vcpkg will rebuild packages,
-     * last part of key is random so that exact matches never occur and cache is upload
+     * last part of key is GITHUB_RUN_ID so that exact matches never occur and cache is upload
      * only if vcpkg actually created new binary packages
      */
-    let restoreKey = `vcpkg|RUNNER_OS=${runnerOs}|`;
+    const runnerOs = getEnvVariable('RUNNER_OS');
+    let restoreKey = `vcpkg|RUNNER_OS=${runnerOs}`;
     if (inputs.cacheKeyTag) {
-        restoreKey += `tag=${inputs.cacheKeyTag}|`;
+        restoreKey += `|tag=${inputs.cacheKeyTag}|`;
+    } else {
+        restoreKey += `|tag is not set|`;
     }
     console.info('Cache restore key is', restoreKey);
-    const key = `${restoreKey}random=${randomBytes(32).toString('hex')}`;
+    const runId = getEnvVariable('GITHUB_RUN_ID');
+    const key = `${restoreKey}GITHUB_RUN_ID=${runId}`;
     core.saveState(cacheKeyState, key);
     console.info('Cache key is', key);
     try {
