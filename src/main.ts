@@ -1,6 +1,6 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess, SpawnOptions, spawn } from 'child_process';
 import { randomBytes } from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
@@ -18,10 +18,16 @@ async function execProcess(process: ChildProcess) {
     }
 }
 
-async function execCommand(command: string, args: string[], shell?: boolean) {
+async function execCommand(command: string, args: string[], options?: SpawnOptions) {
     console.info('Executing command', command, 'with arguments', args);
+    if (!options) {
+        options = {};
+    }
+    if (!options.stdio) {
+        options.stdio = 'inherit';
+    }
     try {
-        const child = spawn(command, args, { stdio: 'inherit', shell: shell ?? false });
+        const child = spawn(command, args, options);
         await execProcess(child);
     } catch (error) {
         console.error(error);
@@ -165,12 +171,14 @@ async function setupVcpkg(vcpkgRoot: string): Promise<string> {
     }
 
     let bootstrapScript: string;
+    let spawnOptions: SpawnOptions = {};
     if (os.platform() == 'win32') {
         bootstrapScript = 'bootstrap-vcpkg.bat';
+        spawnOptions.shell = true;
     } else {
         bootstrapScript = 'bootstrap-vcpkg.sh';
     }
-    await execCommand(path.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], true);
+    await execCommand(path.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], spawnOptions);
 
     core.endGroup();
 
