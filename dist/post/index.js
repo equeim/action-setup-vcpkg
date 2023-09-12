@@ -329,10 +329,7 @@ function getCacheVersion(paths, compressionMethod, enableCrossOsArchive = false)
     }
     // Add salt to cache version to support breaking changes in cache entry
     components.push(versionSalt);
-    return crypto
-        .createHash('sha256')
-        .update(components.join('|'))
-        .digest('hex');
+    return crypto.createHash('sha256').update(components.join('|')).digest('hex');
 }
 exports.getCacheVersion = getCacheVersion;
 function getCacheEntry(keys, paths, options) {
@@ -385,13 +382,21 @@ function downloadCache(archiveLocation, archivePath, options) {
     return __awaiter(this, void 0, void 0, function* () {
         const archiveUrl = new url_1.URL(archiveLocation);
         const downloadOptions = (0, options_1.getDownloadOptions)(options);
-        if (downloadOptions.useAzureSdk &&
-            archiveUrl.hostname.endsWith('.blob.core.windows.net')) {
-            // Use Azure storage SDK to download caches hosted on Azure to improve speed and reliability.
-            yield (0, downloadUtils_1.downloadCacheStorageSDK)(archiveLocation, archivePath, downloadOptions);
+        if (archiveUrl.hostname.endsWith('.blob.core.windows.net')) {
+            if (downloadOptions.useAzureSdk) {
+                // Use Azure storage SDK to download caches hosted on Azure to improve speed and reliability.
+                yield (0, downloadUtils_1.downloadCacheStorageSDK)(archiveLocation, archivePath, downloadOptions);
+            }
+            else if (downloadOptions.concurrentBlobDownloads) {
+                // Use concurrent implementation with HttpClient to work around blob SDK issue
+                yield (0, downloadUtils_1.downloadCacheHttpClientConcurrent)(archiveLocation, archivePath, downloadOptions);
+            }
+            else {
+                // Otherwise, download using the Actions http-client.
+                yield (0, downloadUtils_1.downloadCacheHttpClient)(archiveLocation, archivePath);
+            }
         }
         else {
-            // Otherwise, download using the Actions http-client.
             yield (0, downloadUtils_1.downloadCacheHttpClient)(archiveLocation, archivePath);
         }
     });
@@ -424,9 +429,7 @@ function getContentRange(start, end) {
 }
 function uploadChunk(httpClient, resourceUrl, openStream, start, end) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.debug(`Uploading chunk of size ${end -
-            start +
-            1} bytes at offset ${start} with content range: ${getContentRange(start, end)}`);
+        core.debug(`Uploading chunk of size ${end - start + 1} bytes at offset ${start} with content range: ${getContentRange(start, end)}`);
         const additionalHeaders = {
             'Content-Type': 'application/octet-stream',
             'Content-Range': getContentRange(start, end)
@@ -593,35 +596,42 @@ function getArchiveFileSizeInBytes(filePath) {
 }
 exports.getArchiveFileSizeInBytes = getArchiveFileSizeInBytes;
 function resolvePaths(patterns) {
-    var e_1, _a;
-    var _b;
+    var _a, e_1, _b, _c;
+    var _d;
     return __awaiter(this, void 0, void 0, function* () {
         const paths = [];
-        const workspace = (_b = process.env['GITHUB_WORKSPACE']) !== null && _b !== void 0 ? _b : process.cwd();
+        const workspace = (_d = process.env['GITHUB_WORKSPACE']) !== null && _d !== void 0 ? _d : process.cwd();
         const globber = yield glob.create(patterns.join('\n'), {
             implicitDescendants: false
         });
         try {
-            for (var _c = __asyncValues(globber.globGenerator()), _d; _d = yield _c.next(), !_d.done;) {
-                const file = _d.value;
-                const relativeFile = path
-                    .relative(workspace, file)
-                    .replace(new RegExp(`\\${path.sep}`, 'g'), '/');
-                core.debug(`Matched: ${relativeFile}`);
-                // Paths are made relative so the tar entries are all relative to the root of the workspace.
-                if (relativeFile === '') {
-                    // path.relative returns empty string if workspace and file are equal
-                    paths.push('.');
+            for (var _e = true, _f = __asyncValues(globber.globGenerator()), _g; _g = yield _f.next(), _a = _g.done, !_a;) {
+                _c = _g.value;
+                _e = false;
+                try {
+                    const file = _c;
+                    const relativeFile = path
+                        .relative(workspace, file)
+                        .replace(new RegExp(`\\${path.sep}`, 'g'), '/');
+                    core.debug(`Matched: ${relativeFile}`);
+                    // Paths are made relative so the tar entries are all relative to the root of the workspace.
+                    if (relativeFile === '') {
+                        // path.relative returns empty string if workspace and file are equal
+                        paths.push('.');
+                    }
+                    else {
+                        paths.push(`${relativeFile}`);
+                    }
                 }
-                else {
-                    paths.push(`${relativeFile}`);
+                finally {
+                    _e = true;
                 }
             }
         }
         catch (e_1_1) { e_1 = { error: e_1_1 }; }
         finally {
             try {
-                if (_d && !_d.done && (_a = _c.return)) yield _a.call(_c);
+                if (!_e && !_a && (_b = _f.return)) yield _b.call(_f);
             }
             finally { if (e_1) throw e_1.error; }
         }
@@ -784,7 +794,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.downloadCacheStorageSDK = exports.downloadCacheHttpClient = exports.DownloadProgress = void 0;
+exports.downloadCacheStorageSDK = exports.downloadCacheHttpClientConcurrent = exports.downloadCacheHttpClient = exports.DownloadProgress = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const http_client_1 = __nccwpck_require__(6255);
 const storage_blob_1 = __nccwpck_require__(4100);
@@ -941,6 +951,115 @@ function downloadCacheHttpClient(archiveLocation, archivePath) {
     });
 }
 exports.downloadCacheHttpClient = downloadCacheHttpClient;
+/**
+ * Download the cache using the Actions toolkit http-client concurrently
+ *
+ * @param archiveLocation the URL for the cache
+ * @param archivePath the local path where the cache is saved
+ */
+function downloadCacheHttpClientConcurrent(archiveLocation, archivePath, options) {
+    var _a;
+    return __awaiter(this, void 0, void 0, function* () {
+        const archiveDescriptor = yield fs.promises.open(archivePath, 'w');
+        const httpClient = new http_client_1.HttpClient('actions/cache', undefined, {
+            socketTimeout: options.timeoutInMs,
+            keepAlive: true
+        });
+        try {
+            const res = yield (0, requestUtils_1.retryHttpClientResponse)('downloadCacheMetadata', () => __awaiter(this, void 0, void 0, function* () { return yield httpClient.request('HEAD', archiveLocation, null, {}); }));
+            const lengthHeader = res.message.headers['content-length'];
+            if (lengthHeader === undefined || lengthHeader === null) {
+                throw new Error('Content-Length not found on blob response');
+            }
+            const length = parseInt(lengthHeader);
+            if (Number.isNaN(length)) {
+                throw new Error(`Could not interpret Content-Length: ${length}`);
+            }
+            const downloads = [];
+            const blockSize = 4 * 1024 * 1024;
+            for (let offset = 0; offset < length; offset += blockSize) {
+                const count = Math.min(blockSize, length - offset);
+                downloads.push({
+                    offset,
+                    promiseGetter: () => __awaiter(this, void 0, void 0, function* () {
+                        return yield downloadSegmentRetry(httpClient, archiveLocation, offset, count);
+                    })
+                });
+            }
+            // reverse to use .pop instead of .shift
+            downloads.reverse();
+            let actives = 0;
+            let bytesDownloaded = 0;
+            const progress = new DownloadProgress(length);
+            progress.startDisplayTimer();
+            const progressFn = progress.onProgress();
+            const activeDownloads = [];
+            let nextDownload;
+            const waitAndWrite = () => __awaiter(this, void 0, void 0, function* () {
+                const segment = yield Promise.race(Object.values(activeDownloads));
+                yield archiveDescriptor.write(segment.buffer, 0, segment.count, segment.offset);
+                actives--;
+                delete activeDownloads[segment.offset];
+                bytesDownloaded += segment.count;
+                progressFn({ loadedBytes: bytesDownloaded });
+            });
+            while ((nextDownload = downloads.pop())) {
+                activeDownloads[nextDownload.offset] = nextDownload.promiseGetter();
+                actives++;
+                if (actives >= ((_a = options.downloadConcurrency) !== null && _a !== void 0 ? _a : 10)) {
+                    yield waitAndWrite();
+                }
+            }
+            while (actives > 0) {
+                yield waitAndWrite();
+            }
+        }
+        finally {
+            httpClient.dispose();
+            yield archiveDescriptor.close();
+        }
+    });
+}
+exports.downloadCacheHttpClientConcurrent = downloadCacheHttpClientConcurrent;
+function downloadSegmentRetry(httpClient, archiveLocation, offset, count) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const retries = 5;
+        let failures = 0;
+        while (true) {
+            try {
+                const timeout = 30000;
+                const result = yield promiseWithTimeout(timeout, downloadSegment(httpClient, archiveLocation, offset, count));
+                if (typeof result === 'string') {
+                    throw new Error('downloadSegmentRetry failed due to timeout');
+                }
+                return result;
+            }
+            catch (err) {
+                if (failures >= retries) {
+                    throw err;
+                }
+                failures++;
+            }
+        }
+    });
+}
+function downloadSegment(httpClient, archiveLocation, offset, count) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const partRes = yield (0, requestUtils_1.retryHttpClientResponse)('downloadCachePart', () => __awaiter(this, void 0, void 0, function* () {
+            return yield httpClient.get(archiveLocation, {
+                Range: `bytes=${offset}-${offset + count - 1}`
+            });
+        }));
+        if (!partRes.readBodyBuffer) {
+            throw new Error('Expected HttpClientResponse to implement readBodyBuffer');
+        }
+        return {
+            offset,
+            count,
+            buffer: yield partRes.readBodyBuffer()
+        };
+    });
+}
 /**
  * Download the cache using the Azure Storage SDK.  Only call this method if the
  * URL points to an Azure Storage endpoint.
@@ -1503,7 +1622,8 @@ exports.getUploadOptions = getUploadOptions;
  */
 function getDownloadOptions(copy) {
     const result = {
-        useAzureSdk: true,
+        useAzureSdk: false,
+        concurrentBlobDownloads: true,
         downloadConcurrency: 8,
         timeoutInMs: 30000,
         segmentTimeoutInMs: 600000,
@@ -1512,6 +1632,9 @@ function getDownloadOptions(copy) {
     if (copy) {
         if (typeof copy.useAzureSdk === 'boolean') {
             result.useAzureSdk = copy.useAzureSdk;
+        }
+        if (typeof copy.concurrentBlobDownloads === 'boolean') {
+            result.concurrentBlobDownloads = copy.concurrentBlobDownloads;
         }
         if (typeof copy.downloadConcurrency === 'number') {
             result.downloadConcurrency = copy.downloadConcurrency;
@@ -1576,14 +1699,42 @@ var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER ||
 // Max safe segment length for coercion.
 var MAX_SAFE_COMPONENT_LENGTH = 16
 
+var MAX_SAFE_BUILD_LENGTH = MAX_LENGTH - 6
+
 // The actual regexps go on exports.re
 var re = exports.re = []
+var safeRe = exports.safeRe = []
 var src = exports.src = []
 var t = exports.tokens = {}
 var R = 0
 
 function tok (n) {
   t[n] = R++
+}
+
+var LETTERDASHNUMBER = '[a-zA-Z0-9-]'
+
+// Replace some greedy regex tokens to prevent regex dos issues. These regex are
+// used internally via the safeRe object since all inputs in this library get
+// normalized first to trim and collapse all extra whitespace. The original
+// regexes are exported for userland consumption and lower level usage. A
+// future breaking change could export the safer regex only with a note that
+// all input should have extra whitespace removed.
+var safeRegexReplacements = [
+  ['\\s', 1],
+  ['\\d', MAX_LENGTH],
+  [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH],
+]
+
+function makeSafeRe (value) {
+  for (var i = 0; i < safeRegexReplacements.length; i++) {
+    var token = safeRegexReplacements[i][0]
+    var max = safeRegexReplacements[i][1]
+    value = value
+      .split(token + '*').join(token + '{0,' + max + '}')
+      .split(token + '+').join(token + '{1,' + max + '}')
+  }
+  return value
 }
 
 // The following Regular Expressions can be used for tokenizing,
@@ -1595,14 +1746,14 @@ function tok (n) {
 tok('NUMERICIDENTIFIER')
 src[t.NUMERICIDENTIFIER] = '0|[1-9]\\d*'
 tok('NUMERICIDENTIFIERLOOSE')
-src[t.NUMERICIDENTIFIERLOOSE] = '[0-9]+'
+src[t.NUMERICIDENTIFIERLOOSE] = '\\d+'
 
 // ## Non-numeric Identifier
 // Zero or more digits, followed by a letter or hyphen, and then zero or
 // more letters, digits, or hyphens.
 
 tok('NONNUMERICIDENTIFIER')
-src[t.NONNUMERICIDENTIFIER] = '\\d*[a-zA-Z-][a-zA-Z0-9-]*'
+src[t.NONNUMERICIDENTIFIER] = '\\d*[a-zA-Z-]' + LETTERDASHNUMBER + '*'
 
 // ## Main Version
 // Three dot-separated numeric identifiers.
@@ -1644,7 +1795,7 @@ src[t.PRERELEASELOOSE] = '(?:-?(' + src[t.PRERELEASEIDENTIFIERLOOSE] +
 // Any combination of digits, letters, or hyphens.
 
 tok('BUILDIDENTIFIER')
-src[t.BUILDIDENTIFIER] = '[0-9A-Za-z-]+'
+src[t.BUILDIDENTIFIER] = LETTERDASHNUMBER + '+'
 
 // ## Build Metadata
 // Plus sign, followed by one or more period-separated build metadata
@@ -1724,6 +1875,7 @@ src[t.COERCE] = '(^|[^\\d])' +
               '(?:$|[^\\d])'
 tok('COERCERTL')
 re[t.COERCERTL] = new RegExp(src[t.COERCE], 'g')
+safeRe[t.COERCERTL] = new RegExp(makeSafeRe(src[t.COERCE]), 'g')
 
 // Tilde ranges.
 // Meaning is "reasonably at or greater than"
@@ -1733,6 +1885,7 @@ src[t.LONETILDE] = '(?:~>?)'
 tok('TILDETRIM')
 src[t.TILDETRIM] = '(\\s*)' + src[t.LONETILDE] + '\\s+'
 re[t.TILDETRIM] = new RegExp(src[t.TILDETRIM], 'g')
+safeRe[t.TILDETRIM] = new RegExp(makeSafeRe(src[t.TILDETRIM]), 'g')
 var tildeTrimReplace = '$1~'
 
 tok('TILDE')
@@ -1748,6 +1901,7 @@ src[t.LONECARET] = '(?:\\^)'
 tok('CARETTRIM')
 src[t.CARETTRIM] = '(\\s*)' + src[t.LONECARET] + '\\s+'
 re[t.CARETTRIM] = new RegExp(src[t.CARETTRIM], 'g')
+safeRe[t.CARETTRIM] = new RegExp(makeSafeRe(src[t.CARETTRIM]), 'g')
 var caretTrimReplace = '$1^'
 
 tok('CARET')
@@ -1769,6 +1923,7 @@ src[t.COMPARATORTRIM] = '(\\s*)' + src[t.GTLT] +
 
 // this one has to use the /g flag
 re[t.COMPARATORTRIM] = new RegExp(src[t.COMPARATORTRIM], 'g')
+safeRe[t.COMPARATORTRIM] = new RegExp(makeSafeRe(src[t.COMPARATORTRIM]), 'g')
 var comparatorTrimReplace = '$1$2$3'
 
 // Something like `1.2.3 - 1.2.4`
@@ -1797,6 +1952,14 @@ for (var i = 0; i < R; i++) {
   debug(i, src[i])
   if (!re[i]) {
     re[i] = new RegExp(src[i])
+
+    // Replace all greedy whitespace to prevent regex dos issues. These regex are
+    // used internally via the safeRe object since all inputs in this library get
+    // normalized first to trim and collapse all extra whitespace. The original
+    // regexes are exported for userland consumption and lower level usage. A
+    // future breaking change could export the safer regex only with a note that
+    // all input should have extra whitespace removed.
+    safeRe[i] = new RegExp(makeSafeRe(src[i]))
   }
 }
 
@@ -1821,7 +1984,7 @@ function parse (version, options) {
     return null
   }
 
-  var r = options.loose ? re[t.LOOSE] : re[t.FULL]
+  var r = options.loose ? safeRe[t.LOOSE] : safeRe[t.FULL]
   if (!r.test(version)) {
     return null
   }
@@ -1876,7 +2039,7 @@ function SemVer (version, options) {
   this.options = options
   this.loose = !!options.loose
 
-  var m = version.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL])
+  var m = version.trim().match(options.loose ? safeRe[t.LOOSE] : safeRe[t.FULL])
 
   if (!m) {
     throw new TypeError('Invalid Version: ' + version)
@@ -2321,6 +2484,7 @@ function Comparator (comp, options) {
     return new Comparator(comp, options)
   }
 
+  comp = comp.trim().split(/\s+/).join(' ')
   debug('comparator', comp, options)
   this.options = options
   this.loose = !!options.loose
@@ -2337,7 +2501,7 @@ function Comparator (comp, options) {
 
 var ANY = {}
 Comparator.prototype.parse = function (comp) {
-  var r = this.options.loose ? re[t.COMPARATORLOOSE] : re[t.COMPARATOR]
+  var r = this.options.loose ? safeRe[t.COMPARATORLOOSE] : safeRe[t.COMPARATOR]
   var m = comp.match(r)
 
   if (!m) {
@@ -2461,9 +2625,16 @@ function Range (range, options) {
   this.loose = !!options.loose
   this.includePrerelease = !!options.includePrerelease
 
-  // First, split based on boolean or ||
+  // First reduce all whitespace as much as possible so we do not have to rely
+  // on potentially slow regexes like \s*. This is then stored and used for
+  // future error messages as well.
   this.raw = range
-  this.set = range.split(/\s*\|\|\s*/).map(function (range) {
+    .trim()
+    .split(/\s+/)
+    .join(' ')
+
+  // First, split based on boolean or ||
+  this.set = this.raw.split('||').map(function (range) {
     return this.parseRange(range.trim())
   }, this).filter(function (c) {
     // throw out any that are not relevant for whatever reason
@@ -2471,7 +2642,7 @@ function Range (range, options) {
   })
 
   if (!this.set.length) {
-    throw new TypeError('Invalid SemVer Range: ' + range)
+    throw new TypeError('Invalid SemVer Range: ' + this.raw)
   }
 
   this.format()
@@ -2490,20 +2661,19 @@ Range.prototype.toString = function () {
 
 Range.prototype.parseRange = function (range) {
   var loose = this.options.loose
-  range = range.trim()
   // `1.2.3 - 1.2.4` => `>=1.2.3 <=1.2.4`
-  var hr = loose ? re[t.HYPHENRANGELOOSE] : re[t.HYPHENRANGE]
+  var hr = loose ? safeRe[t.HYPHENRANGELOOSE] : safeRe[t.HYPHENRANGE]
   range = range.replace(hr, hyphenReplace)
   debug('hyphen replace', range)
   // `> 1.2.3 < 1.2.5` => `>1.2.3 <1.2.5`
-  range = range.replace(re[t.COMPARATORTRIM], comparatorTrimReplace)
-  debug('comparator trim', range, re[t.COMPARATORTRIM])
+  range = range.replace(safeRe[t.COMPARATORTRIM], comparatorTrimReplace)
+  debug('comparator trim', range, safeRe[t.COMPARATORTRIM])
 
   // `~ 1.2.3` => `~1.2.3`
-  range = range.replace(re[t.TILDETRIM], tildeTrimReplace)
+  range = range.replace(safeRe[t.TILDETRIM], tildeTrimReplace)
 
   // `^ 1.2.3` => `^1.2.3`
-  range = range.replace(re[t.CARETTRIM], caretTrimReplace)
+  range = range.replace(safeRe[t.CARETTRIM], caretTrimReplace)
 
   // normalize spaces
   range = range.split(/\s+/).join(' ')
@@ -2511,7 +2681,7 @@ Range.prototype.parseRange = function (range) {
   // At this point, the range is completely trimmed and
   // ready to be split into comparators.
 
-  var compRe = loose ? re[t.COMPARATORLOOSE] : re[t.COMPARATOR]
+  var compRe = loose ? safeRe[t.COMPARATORLOOSE] : safeRe[t.COMPARATOR]
   var set = range.split(' ').map(function (comp) {
     return parseComparator(comp, this.options)
   }, this).join(' ').split(/\s+/)
@@ -2611,7 +2781,7 @@ function replaceTildes (comp, options) {
 }
 
 function replaceTilde (comp, options) {
-  var r = options.loose ? re[t.TILDELOOSE] : re[t.TILDE]
+  var r = options.loose ? safeRe[t.TILDELOOSE] : safeRe[t.TILDE]
   return comp.replace(r, function (_, M, m, p, pr) {
     debug('tilde', comp, _, M, m, p, pr)
     var ret
@@ -2652,7 +2822,7 @@ function replaceCarets (comp, options) {
 
 function replaceCaret (comp, options) {
   debug('caret', comp, options)
-  var r = options.loose ? re[t.CARETLOOSE] : re[t.CARET]
+  var r = options.loose ? safeRe[t.CARETLOOSE] : safeRe[t.CARET]
   return comp.replace(r, function (_, M, m, p, pr) {
     debug('caret', comp, _, M, m, p, pr)
     var ret
@@ -2711,7 +2881,7 @@ function replaceXRanges (comp, options) {
 
 function replaceXRange (comp, options) {
   comp = comp.trim()
-  var r = options.loose ? re[t.XRANGELOOSE] : re[t.XRANGE]
+  var r = options.loose ? safeRe[t.XRANGELOOSE] : safeRe[t.XRANGE]
   return comp.replace(r, function (ret, gtlt, M, m, p, pr) {
     debug('xRange', comp, ret, gtlt, M, m, p, pr)
     var xM = isX(M)
@@ -2786,7 +2956,7 @@ function replaceXRange (comp, options) {
 function replaceStars (comp, options) {
   debug('replaceStars', comp, options)
   // Looseness is ignored here.  star is always as loose as it gets!
-  return comp.trim().replace(re[t.STAR], '')
+  return comp.trim().replace(safeRe[t.STAR], '')
 }
 
 // This function is passed to string.replace(re[t.HYPHENRANGE])
@@ -3112,7 +3282,7 @@ function coerce (version, options) {
 
   var match = null
   if (!options.rtl) {
-    match = version.match(re[t.COERCE])
+    match = version.match(safeRe[t.COERCE])
   } else {
     // Find the right-most coercible string that does not share
     // a terminus with a more left-ward coercible string.
@@ -3123,17 +3293,17 @@ function coerce (version, options) {
     // Stop when we get a match that ends at the string end, since no
     // coercible string can be more right-ward without the same terminus.
     var next
-    while ((next = re[t.COERCERTL].exec(version)) &&
+    while ((next = safeRe[t.COERCERTL].exec(version)) &&
       (!match || match.index + match[0].length !== version.length)
     ) {
       if (!match ||
           next.index + next[0].length !== match.index + match[0].length) {
         match = next
       }
-      re[t.COERCERTL].lastIndex = next.index + next[1].length + next[2].length
+      safeRe[t.COERCERTL].lastIndex = next.index + next[1].length + next[2].length
     }
     // leave it in a clean state
-    re[t.COERCERTL].lastIndex = -1
+    safeRe[t.COERCERTL].lastIndex = -1
   }
 
   if (match === null) {
@@ -3916,7 +4086,7 @@ class OidcClient {
                 .catch(error => {
                 throw new Error(`Failed to get ID Token. \n 
         Error Code : ${error.statusCode}\n 
-        Error Message: ${error.result.message}`);
+        Error Message: ${error.message}`);
             });
             const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
             if (!id_token) {
@@ -6351,6 +6521,19 @@ class HttpClientResponse {
             }));
         });
     }
+    readBodyBuffer() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+                const chunks = [];
+                this.message.on('data', (chunk) => {
+                    chunks.push(chunk);
+                });
+                this.message.on('end', () => {
+                    resolve(Buffer.concat(chunks));
+                });
+            }));
+        });
+    }
 }
 exports.HttpClientResponse = HttpClientResponse;
 function isHttps(requestUrl) {
@@ -6854,7 +7037,13 @@ function getProxyUrl(reqUrl) {
         }
     })();
     if (proxyVar) {
-        return new URL(proxyVar);
+        try {
+            return new URL(proxyVar);
+        }
+        catch (_a) {
+            if (!proxyVar.startsWith('http://') && !proxyVar.startsWith('https://'))
+                return new URL(`http://${proxyVar}`);
+        }
     }
     else {
         return undefined;
@@ -7657,11 +7846,13 @@ exports.AbortSignal = AbortSignal;
 /***/ }),
 
 /***/ 9645:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+var coreUtil = __nccwpck_require__(1333);
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
@@ -7670,6 +7861,12 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
  * the underlying key value.
  */
 class AzureKeyCredential {
+    /**
+     * The value of the key to be used in authentication
+     */
+    get key() {
+        return this._key;
+    }
     /**
      * Create an instance of an AzureKeyCredential for use
      * with a service client.
@@ -7681,12 +7878,6 @@ class AzureKeyCredential {
             throw new Error("key must be a non-empty string");
         }
         this._key = key;
-    }
-    /**
-     * The value of the key to be used in authentication
-     */
-    get key() {
-        return this._key;
     }
     /**
      * Change the value of the key.
@@ -7702,50 +7893,23 @@ class AzureKeyCredential {
 }
 
 // Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-/**
- * Helper TypeGuard that checks if something is defined or not.
- * @param thing - Anything
- * @internal
- */
-function isDefined(thing) {
-    return typeof thing !== "undefined" && thing !== null;
-}
-/**
- * Helper TypeGuard that checks if the input is an object with the specified properties.
- * Note: The properties may be inherited.
- * @param thing - Anything.
- * @param properties - The name of the properties that should appear in the object.
- * @internal
- */
-function isObjectWithProperties(thing, properties) {
-    if (!isDefined(thing) || typeof thing !== "object") {
-        return false;
-    }
-    for (const property of properties) {
-        if (!objectHasProperty(thing, property)) {
-            return false;
-        }
-    }
-    return true;
-}
-/**
- * Helper TypeGuard that checks if the input is an object with the specified property.
- * Note: The property may be inherited.
- * @param thing - Any object.
- * @param property - The name of the property that should appear in the object.
- * @internal
- */
-function objectHasProperty(thing, property) {
-    return typeof thing === "object" && property in thing;
-}
-
-// Copyright (c) Microsoft Corporation.
 /**
  * A static name/key-based credential that supports updating
  * the underlying name and key values.
  */
 class AzureNamedKeyCredential {
+    /**
+     * The value of the key to be used in authentication.
+     */
+    get key() {
+        return this._key;
+    }
+    /**
+     * The value of the name to be used in authentication.
+     */
+    get name() {
+        return this._name;
+    }
     /**
      * Create an instance of an AzureNamedKeyCredential for use
      * with a service client.
@@ -7759,18 +7923,6 @@ class AzureNamedKeyCredential {
         }
         this._name = name;
         this._key = key;
-    }
-    /**
-     * The value of the key to be used in authentication.
-     */
-    get key() {
-        return this._key;
-    }
-    /**
-     * The value of the name to be used in authentication.
-     */
-    get name() {
-        return this._name;
     }
     /**
      * Change the value of the key.
@@ -7795,7 +7947,7 @@ class AzureNamedKeyCredential {
  * @param credential - The assumed NamedKeyCredential to be tested.
  */
 function isNamedKeyCredential(credential) {
-    return (isObjectWithProperties(credential, ["name", "key"]) &&
+    return (coreUtil.isObjectWithProperties(credential, ["name", "key"]) &&
         typeof credential.key === "string" &&
         typeof credential.name === "string");
 }
@@ -7807,6 +7959,12 @@ function isNamedKeyCredential(credential) {
  */
 class AzureSASCredential {
     /**
+     * The value of the shared access signature to be used in authentication
+     */
+    get signature() {
+        return this._signature;
+    }
+    /**
      * Create an instance of an AzureSASCredential for use
      * with a service client.
      *
@@ -7817,12 +7975,6 @@ class AzureSASCredential {
             throw new Error("shared access signature must be a non-empty string");
         }
         this._signature = signature;
-    }
-    /**
-     * The value of the shared access signature to be used in authentication
-     */
-    get signature() {
-        return this._signature;
     }
     /**
      * Change the value of the signature.
@@ -7845,7 +7997,7 @@ class AzureSASCredential {
  * @param credential - The assumed SASCredential to be tested.
  */
 function isSASCredential(credential) {
-    return (isObjectWithProperties(credential, ["signature"]) && typeof credential.signature === "string");
+    return (coreUtil.isObjectWithProperties(credential, ["signature"]) && typeof credential.signature === "string");
 }
 
 // Copyright (c) Microsoft Corporation.
@@ -8117,7 +8269,7 @@ const Constants = {
     /**
      * The core-http version
      */
-    coreHttpVersion: "3.0.1",
+    coreHttpVersion: "3.0.3",
     /**
      * Specifies HTTP.
      */
@@ -8195,13 +8347,6 @@ const XML_CHARKEY = "_";
 
 // Copyright (c) Microsoft Corporation.
 const validUuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i;
-/**
- * A constant that indicates whether the environment is node.js or browser based.
- */
-const isNode = typeof process !== "undefined" &&
-    !!process.version &&
-    !!process.versions &&
-    !!process.versions.node;
 /**
  * Encodes an URI.
  *
@@ -12882,7 +13027,7 @@ function createDefaultRequestPolicyFactories(authPolicyFactory, options) {
         factories.push(throttlingRetryPolicy());
     }
     factories.push(deserializationPolicy(options.deserializationContentTypes));
-    if (isNode) {
+    if (coreUtil.isNode) {
         factories.push(proxyPolicy(options.proxySettings));
     }
     factories.push(logPolicy({ logger: logger.info }));
@@ -12914,7 +13059,7 @@ function createPipelineFromOptions(pipelineOptions, authPolicyFactory) {
     const keepAliveOptions = Object.assign(Object.assign({}, DefaultKeepAliveOptions), pipelineOptions.keepAliveOptions);
     const retryOptions = Object.assign(Object.assign({}, DefaultRetryOptions), pipelineOptions.retryOptions);
     const redirectOptions = Object.assign(Object.assign({}, DefaultRedirectOptions), pipelineOptions.redirectOptions);
-    if (isNode) {
+    if (coreUtil.isNode) {
         requestPolicyFactories.push(proxyPolicy(pipelineOptions.proxyOptions));
     }
     const deserializationOptions = Object.assign(Object.assign({}, DefaultDeserializationOptions), pipelineOptions.deserializationOptions);
@@ -12927,7 +13072,7 @@ function createPipelineFromOptions(pipelineOptions, authPolicyFactory) {
         requestPolicyFactories.push(authPolicyFactory);
     }
     requestPolicyFactories.push(logPolicy(loggingOptions));
-    if (isNode && pipelineOptions.decompressResponse === false) {
+    if (coreUtil.isNode && pipelineOptions.decompressResponse === false) {
         requestPolicyFactories.push(disableResponseDecompressionPolicy());
     }
     return {
@@ -13058,10 +13203,7 @@ function flattenResponse(_response, responseSpec) {
 }
 function getCredentialScopes(options, baseUri) {
     if (options === null || options === void 0 ? void 0 : options.credentialScopes) {
-        const scopes = options.credentialScopes;
-        return Array.isArray(scopes)
-            ? scopes.map((scope) => new URL(scope).toString())
-            : new URL(scopes).toString();
+        return options.credentialScopes;
     }
     if (baseUri) {
         return `${baseUri}/.default`;
@@ -13294,6 +13436,10 @@ Object.defineProperty(exports, "delay", ({
     enumerable: true,
     get: function () { return coreUtil.delay; }
 }));
+Object.defineProperty(exports, "isNode", ({
+    enumerable: true,
+    get: function () { return coreUtil.isNode; }
+}));
 Object.defineProperty(exports, "isTokenCredential", ({
     enumerable: true,
     get: function () { return coreAuth.isTokenCredential; }
@@ -13333,7 +13479,6 @@ exports.generateUuid = generateUuid;
 exports.getDefaultProxySettings = getDefaultProxySettings;
 exports.getDefaultUserAgentValue = getDefaultUserAgentValue;
 exports.isDuration = isDuration;
-exports.isNode = isNode;
 exports.isValidUuid = isValidUuid;
 exports.keepAlivePolicy = keepAlivePolicy;
 exports.logPolicy = logPolicy;
@@ -13933,16 +14078,45 @@ function setStateError(inputs) {
         throw error;
     };
 }
+function appendReadableErrorMessage(currentMessage, innerMessage) {
+    let message = currentMessage;
+    if (message.slice(-1) !== ".") {
+        message = message + ".";
+    }
+    return message + " " + innerMessage;
+}
+function simplifyError(err) {
+    let message = err.message;
+    let code = err.code;
+    let curErr = err;
+    while (curErr.innererror) {
+        curErr = curErr.innererror;
+        code = curErr.code;
+        message = appendReadableErrorMessage(message, curErr.message);
+    }
+    return {
+        code,
+        message,
+    };
+}
 function processOperationStatus(result) {
-    const { state, stateProxy, status, isDone, processResult, response, setErrorAsResult } = result;
+    const { state, stateProxy, status, isDone, processResult, getError, response, setErrorAsResult } = result;
     switch (status) {
         case "succeeded": {
             stateProxy.setSucceeded(state);
             break;
         }
         case "failed": {
-            stateProxy.setError(state, new Error(`The long-running operation has failed`));
+            const err = getError === null || getError === void 0 ? void 0 : getError(response);
+            let postfix = "";
+            if (err) {
+                const { code, message } = simplifyError(err);
+                postfix = `. ${code}. ${message}`;
+            }
+            const errStr = `The long-running operation has failed${postfix}`;
+            stateProxy.setError(state, new Error(errStr));
             stateProxy.setFailed(state);
+            logger.warning(errStr);
             break;
         }
         case "canceled": {
@@ -14005,7 +14179,7 @@ async function pollOperationHelper(inputs) {
 }
 /** Polls the long-running operation. */
 async function pollOperation(inputs) {
-    const { poll, state, stateProxy, options, getOperationStatus, getResourceLocation, getOperationLocation, isOperationError, withOperationLocation, getPollingInterval, processResult, updateState, setDelay, isDone, setErrorAsResult, } = inputs;
+    const { poll, state, stateProxy, options, getOperationStatus, getResourceLocation, getOperationLocation, isOperationError, withOperationLocation, getPollingInterval, processResult, getError, updateState, setDelay, isDone, setErrorAsResult, } = inputs;
     const { operationLocation } = state.config;
     if (operationLocation !== undefined) {
         const { response, status } = await pollOperationHelper({
@@ -14025,6 +14199,7 @@ async function pollOperation(inputs) {
             stateProxy,
             isDone,
             processResult,
+            getError,
             setErrorAsResult,
         });
         if (!terminalStates.includes(status)) {
@@ -14059,6 +14234,7 @@ function getAzureAsyncOperationHeader(rawResponse) {
     return rawResponse.headers["azure-asyncoperation"];
 }
 function findResourceLocation(inputs) {
+    var _a;
     const { location, requestMethod, requestPath, resourceLocationConfig } = inputs;
     switch (requestMethod) {
         case "PUT": {
@@ -14067,18 +14243,24 @@ function findResourceLocation(inputs) {
         case "DELETE": {
             return undefined;
         }
+        case "PATCH": {
+            return (_a = getDefault()) !== null && _a !== void 0 ? _a : requestPath;
+        }
         default: {
-            switch (resourceLocationConfig) {
-                case "azure-async-operation": {
-                    return undefined;
-                }
-                case "original-uri": {
-                    return requestPath;
-                }
-                case "location":
-                default: {
-                    return location;
-                }
+            return getDefault();
+        }
+    }
+    function getDefault() {
+        switch (resourceLocationConfig) {
+            case "azure-async-operation": {
+                return undefined;
+            }
+            case "original-uri": {
+                return requestPath;
+            }
+            case "location":
+            default: {
+                return location;
             }
         }
     }
@@ -14177,6 +14359,18 @@ function parseRetryAfter({ rawResponse }) {
             : retryAfterInSeconds * 1000;
     }
     return undefined;
+}
+function getErrorFromResponse(response) {
+    const error = response.flatResponse.error;
+    if (!error) {
+        logger.warning(`The long-running operation failed but there is no error property in the response's body`);
+        return;
+    }
+    if (!error.code || !error.message) {
+        logger.warning(`The long-running operation failed but the error property in the response's body doesn't contain code or message`);
+        return;
+    }
+    return error;
 }
 function calculatePollingIntervalFromDate(retryAfterDate) {
     const timeNow = Math.floor(new Date().getTime());
@@ -14285,6 +14479,7 @@ async function pollHttpOperation(inputs) {
         processResult: processResult
             ? ({ flatResponse }, inputState) => processResult(flatResponse, inputState)
             : ({ flatResponse }) => flatResponse,
+        getError: getErrorFromResponse,
         updateState,
         getPollingInterval: parseRetryAfter,
         getOperationLocation,
@@ -14326,7 +14521,7 @@ const createStateProxy$1 = () => ({
  * Returns a poller factory.
  */
 function buildCreatePoller(inputs) {
-    const { getOperationLocation, getStatusFromInitialResponse, getStatusFromPollResponse, isOperationError, getResourceLocation, getPollingInterval, resolveOnUnsuccessful, } = inputs;
+    const { getOperationLocation, getStatusFromInitialResponse, getStatusFromPollResponse, isOperationError, getResourceLocation, getPollingInterval, getError, resolveOnUnsuccessful, } = inputs;
     return async ({ init, poll }, options) => {
         const { processResult, updateState, withOperationLocation: withOperationLocationCallback, intervalInMs = POLL_INTERVAL_IN_MS, restoreFrom, } = options || {};
         const stateProxy = createStateProxy$1();
@@ -14431,6 +14626,7 @@ function buildCreatePoller(inputs) {
                     getOperationStatus: getStatusFromPollResponse,
                     getResourceLocation,
                     processResult,
+                    getError,
                     updateState,
                     options: pollOptions,
                     setDelay: (pollIntervalInMs) => {
@@ -14469,6 +14665,7 @@ async function createHttpPoller(lro, options) {
         getOperationLocation,
         getResourceLocation,
         getPollingInterval: parseRetryAfter,
+        getError: getErrorFromResponse,
         resolveOnUnsuccessful,
     })({
         init: async () => {
@@ -15353,14 +15550,6 @@ var abortController = __nccwpck_require__(2557);
 var crypto = __nccwpck_require__(6113);
 
 // Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-var _a$1;
-/**
- * A constant that indicates whether the environment the code is running is Node.JS.
- */
-const isNode = typeof process !== "undefined" && Boolean(process.version) && Boolean((_a$1 = process.versions) === null || _a$1 === void 0 ? void 0 : _a$1.node);
-
-// Copyright (c) Microsoft Corporation.
 /**
  * Creates an abortable promise.
  * @param buildPromise - A function that takes the resolve and reject functions as parameters.
@@ -15551,11 +15740,50 @@ function objectHasProperty(thing, property) {
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-var _a;
+/*
+ * NOTE: When moving this file, please update "react-native" section in package.json.
+ */
+/**
+ * Generated Universally Unique Identifier
+ *
+ * @returns RFC4122 v4 UUID.
+ */
+function generateUUID() {
+    let uuid = "";
+    for (let i = 0; i < 32; i++) {
+        // Generate a random number between 0 and 15
+        const randomNumber = Math.floor(Math.random() * 16);
+        // Set the UUID version to 4 in the 13th position
+        if (i === 12) {
+            uuid += "4";
+        }
+        else if (i === 16) {
+            // Set the UUID variant to "10" in the 17th position
+            uuid += (randomNumber & 0x3) | 0x8;
+        }
+        else {
+            // Add a random hexadecimal digit to the UUID string
+            uuid += randomNumber.toString(16);
+        }
+        // Add hyphens to the UUID string at the appropriate positions
+        if (i === 7 || i === 11 || i === 15 || i === 19) {
+            uuid += "-";
+        }
+    }
+    return uuid;
+}
+
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+var _a$1;
 // NOTE: This is a workaround until we can use `globalThis.crypto.randomUUID` in Node.js 19+.
-const uuidFunction = typeof ((_a = globalThis === null || globalThis === void 0 ? void 0 : globalThis.crypto) === null || _a === void 0 ? void 0 : _a.randomUUID) === "function"
+let uuidFunction = typeof ((_a$1 = globalThis === null || globalThis === void 0 ? void 0 : globalThis.crypto) === null || _a$1 === void 0 ? void 0 : _a$1.randomUUID) === "function"
     ? globalThis.crypto.randomUUID.bind(globalThis.crypto)
     : crypto.randomUUID;
+// Not defined in earlier versions of Node.js 14
+if (!uuidFunction) {
+    uuidFunction = generateUUID;
+}
 /**
  * Generated Universally Unique Identifier
  *
@@ -15565,19 +15793,139 @@ function randomUUID() {
     return uuidFunction();
 }
 
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+var _a, _b, _c, _d;
+/**
+ * A constant that indicates whether the environment the code is running is a Web Browser.
+ */
+// eslint-disable-next-line @azure/azure-sdk/ts-no-window
+const isBrowser = typeof window !== "undefined" && typeof window.document !== "undefined";
+/**
+ * A constant that indicates whether the environment the code is running is a Web Worker.
+ */
+const isWebWorker = typeof self === "object" &&
+    typeof (self === null || self === void 0 ? void 0 : self.importScripts) === "function" &&
+    (((_a = self.constructor) === null || _a === void 0 ? void 0 : _a.name) === "DedicatedWorkerGlobalScope" ||
+        ((_b = self.constructor) === null || _b === void 0 ? void 0 : _b.name) === "ServiceWorkerGlobalScope" ||
+        ((_c = self.constructor) === null || _c === void 0 ? void 0 : _c.name) === "SharedWorkerGlobalScope");
+/**
+ * A constant that indicates whether the environment the code is running is Node.JS.
+ */
+const isNode = typeof process !== "undefined" && Boolean(process.version) && Boolean((_d = process.versions) === null || _d === void 0 ? void 0 : _d.node);
+/**
+ * A constant that indicates whether the environment the code is running is Deno.
+ */
+const isDeno = typeof Deno !== "undefined" &&
+    typeof Deno.version !== "undefined" &&
+    typeof Deno.version.deno !== "undefined";
+/**
+ * A constant that indicates whether the environment the code is running is Bun.sh.
+ */
+const isBun = typeof Bun !== "undefined" && typeof Bun.version !== "undefined";
+/**
+ * A constant that indicates whether the environment the code is running is in React-Native.
+ */
+// https://github.com/facebook/react-native/blob/main/packages/react-native/Libraries/Core/setUpNavigator.js
+const isReactNative = typeof navigator !== "undefined" && (navigator === null || navigator === void 0 ? void 0 : navigator.product) === "ReactNative";
+
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+/**
+ * The helper that transforms bytes with specific character encoding into string
+ * @param bytes - the uint8array bytes
+ * @param format - the format we use to encode the byte
+ * @returns a string of the encoded string
+ */
+function uint8ArrayToString(bytes, format) {
+    switch (format) {
+        case "utf-8":
+            return uint8ArrayToUtf8String(bytes);
+        case "base64":
+            return uint8ArrayToBase64(bytes);
+        case "base64url":
+            return uint8ArrayToBase64Url(bytes);
+    }
+}
+/**
+ * The helper that transforms string to specific character encoded bytes array.
+ * @param value - the string to be converted
+ * @param format - the format we use to decode the value
+ * @returns a uint8array
+ */
+function stringToUint8Array(value, format) {
+    switch (format) {
+        case "utf-8":
+            return utf8StringToUint8Array(value);
+        case "base64":
+            return base64ToUint8Array(value);
+        case "base64url":
+            return base64UrlToUint8Array(value);
+    }
+}
+/**
+ * Decodes a Uint8Array into a Base64 string.
+ * @internal
+ */
+function uint8ArrayToBase64(bytes) {
+    return Buffer.from(bytes).toString("base64");
+}
+/**
+ * Decodes a Uint8Array into a Base64Url string.
+ * @internal
+ */
+function uint8ArrayToBase64Url(bytes) {
+    return Buffer.from(bytes).toString("base64url");
+}
+/**
+ * Decodes a Uint8Array into a javascript string.
+ * @internal
+ */
+function uint8ArrayToUtf8String(bytes) {
+    return Buffer.from(bytes).toString("utf-8");
+}
+/**
+ * Encodes a JavaScript string into a Uint8Array.
+ * @internal
+ */
+function utf8StringToUint8Array(value) {
+    return Buffer.from(value);
+}
+/**
+ * Encodes a Base64 string into a Uint8Array.
+ * @internal
+ */
+function base64ToUint8Array(value) {
+    return Buffer.from(value, "base64");
+}
+/**
+ * Encodes a Base64Url string into a Uint8Array.
+ * @internal
+ */
+function base64UrlToUint8Array(value) {
+    return Buffer.from(value, "base64url");
+}
+
 exports.computeSha256Hash = computeSha256Hash;
 exports.computeSha256Hmac = computeSha256Hmac;
 exports.createAbortablePromise = createAbortablePromise;
 exports.delay = delay;
 exports.getErrorMessage = getErrorMessage;
 exports.getRandomIntegerInclusive = getRandomIntegerInclusive;
+exports.isBrowser = isBrowser;
+exports.isBun = isBun;
 exports.isDefined = isDefined;
+exports.isDeno = isDeno;
 exports.isError = isError;
 exports.isNode = isNode;
 exports.isObject = isObject;
 exports.isObjectWithProperties = isObjectWithProperties;
+exports.isReactNative = isReactNative;
+exports.isWebWorker = isWebWorker;
 exports.objectHasProperty = objectHasProperty;
 exports.randomUUID = randomUUID;
+exports.stringToUint8Array = stringToUint8Array;
+exports.uint8ArrayToString = uint8ArrayToString;
 //# sourceMappingURL=index.js.map
 
 
@@ -24309,7 +24657,7 @@ const timeoutInSeconds = {
 const version = {
     parameterPath: "version",
     mapper: {
-        defaultValue: "2021-12-02",
+        defaultValue: "2023-01-03",
         isConstant: true,
         serializedName: "x-ms-version",
         type: {
@@ -29140,8 +29488,8 @@ const logger = logger$1.createClientLogger("storage-blob");
 
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-const SDK_VERSION = "12.13.0";
-const SERVICE_VERSION = "2021-12-02";
+const SDK_VERSION = "12.15.0";
+const SERVICE_VERSION = "2023-01-03";
 const BLOCK_BLOB_MAX_UPLOAD_BLOB_BYTES = 256 * 1024 * 1024; // 256MB
 const BLOCK_BLOB_MAX_STAGE_BLOCK_BYTES = 4000 * 1024 * 1024; // 4000MB
 const BLOCK_BLOB_MAX_BLOCKS = 50000;
@@ -29978,9 +30326,7 @@ function ConvertInternalResponseOfListBlobHierarchy(internalResponse) {
     var _a;
     return Object.assign(Object.assign({}, internalResponse), { segment: {
             blobPrefixes: (_a = internalResponse.segment.blobPrefixes) === null || _a === void 0 ? void 0 : _a.map((blobPrefixInternal) => {
-                const blobPrefix = {
-                    name: BlobNameToString(blobPrefixInternal.name),
-                };
+                const blobPrefix = Object.assign(Object.assign({}, blobPrefixInternal), { name: BlobNameToString(blobPrefixInternal.name) });
                 return blobPrefix;
             }),
             blobItems: internalResponse.segment.blobItems.map((blobItemInteral) => {
@@ -30999,7 +31345,7 @@ class StorageSharedKeyCredential extends Credential {
  * Changes may cause incorrect behavior and will be lost if the code is regenerated.
  */
 const packageName = "azure-storage-blob";
-const packageVersion = "12.13.0";
+const packageVersion = "12.15.0";
 class StorageClientContext extends coreHttp__namespace.ServiceClient {
     /**
      * Initializes a new instance of the StorageClientContext class.
@@ -31025,7 +31371,7 @@ class StorageClientContext extends coreHttp__namespace.ServiceClient {
         // Parameter assignments
         this.url = url;
         // Assigning values to Constant parameters
-        this.version = options.version || "2021-12-02";
+        this.version = options.version || "2023-01-03";
     }
 }
 
@@ -35051,6 +35397,9 @@ class BlobClient extends StorageClient {
             // (url: string, credential?: StorageSharedKeyCredential | AnonymousCredential | TokenCredential, options?: StoragePipelineOptions)
             // The second parameter is undefined. Use anonymous credential.
             url = urlOrConnectionString;
+            if (blobNameOrOptions && typeof blobNameOrOptions !== "string") {
+                options = blobNameOrOptions;
+            }
             pipeline = newPipeline(new AnonymousCredential(), options);
         }
         else if (credentialOrPipelineOrContainerName &&
@@ -36354,6 +36703,9 @@ class BlockBlobClient extends BlobClient {
             // (url: string, credential?: StorageSharedKeyCredential | AnonymousCredential | TokenCredential, options?: StoragePipelineOptions)
             // The second parameter is undefined. Use anonymous credential.
             url = urlOrConnectionString;
+            if (blobNameOrOptions && typeof blobNameOrOptions !== "string") {
+                options = blobNameOrOptions;
+            }
             pipeline = newPipeline(new AnonymousCredential(), options);
         }
         else if (credentialOrPipelineOrContainerName &&
@@ -38957,9 +39309,7 @@ class ContainerClient extends StorageClient {
                         const blobItem = Object.assign(Object.assign({}, blobItemInteral), { name: BlobNameToString(blobItemInteral.name), tags: toTags(blobItemInteral.blobTags), objectReplicationSourceProperties: parseObjectReplicationRecord(blobItemInteral.objectReplicationMetadata) });
                         return blobItem;
                     }), blobPrefixes: (_a = response.segment.blobPrefixes) === null || _a === void 0 ? void 0 : _a.map((blobPrefixInternal) => {
-                        const blobPrefix = {
-                            name: BlobNameToString(blobPrefixInternal.name),
-                        };
+                        const blobPrefix = Object.assign(Object.assign({}, blobPrefixInternal), { name: BlobNameToString(blobPrefixInternal.name) });
                         return blobPrefix;
                     }) }) });
             return wrappedResponse;
@@ -43577,7 +43927,7 @@ var TraceFlags;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VERSION = void 0;
 // this is autogenerated file, see scripts/version-update.js
-exports.VERSION = '1.4.1';
+exports.VERSION = '1.6.0';
 //# sourceMappingURL=version.js.map
 
 /***/ }),
@@ -50641,10 +50991,6 @@ function getNodeRequestOptions(request) {
 		agent = agent(parsedURL);
 	}
 
-	if (!headers.has('Connection') && !agent) {
-		headers.set('Connection', 'close');
-	}
-
 	// HTTP-network fetch step 4.2
 	// chunked encoding is handled by Node.js
 
@@ -51018,8 +51364,11 @@ function fixResponseChunkedTransferBadEnding(request, errorCallback) {
 
 		if (headers['transfer-encoding'] === 'chunked' && !headers['content-length']) {
 			response.once('close', function (hadError) {
+				// tests for socket presence, as in some situations the
+				// the 'socket' event is not triggered for the request
+				// (happens in deno), avoids `TypeError`
 				// if a data listener is still present we didn't end cleanly
-				const hasDataListener = socket.listenerCount('data') > 0;
+				const hasDataListener = socket && socket.listenerCount('data') > 0;
 
 				if (hasDataListener && !hadError) {
 					const err = new Error('Premature close');
@@ -51061,6 +51410,7 @@ exports.Headers = Headers;
 exports.Request = Request;
 exports.Response = Response;
 exports.FetchError = FetchError;
+exports.AbortError = AbortError;
 
 
 /***/ }),
@@ -53000,7 +53350,7 @@ LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
 OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
-/* global global, define, System, Reflect, Promise */
+/* global global, define, Symbol, Reflect, Promise, SuppressedError */
 var __extends;
 var __assign;
 var __rest;
@@ -53030,6 +53380,8 @@ var __classPrivateFieldGet;
 var __classPrivateFieldSet;
 var __classPrivateFieldIn;
 var __createBinding;
+var __addDisposableResource;
+var __disposeResources;
 (function (factory) {
     var root = typeof global === "object" ? global : typeof self === "object" ? self : typeof this === "object" ? this : {};
     if (typeof define === "function" && define.amd) {
@@ -53114,10 +53466,10 @@ var __createBinding;
                 if (result === null || typeof result !== "object") throw new TypeError("Object expected");
                 if (_ = accept(result.get)) descriptor.get = _;
                 if (_ = accept(result.set)) descriptor.set = _;
-                if (_ = accept(result.init)) initializers.push(_);
+                if (_ = accept(result.init)) initializers.unshift(_);
             }
             else if (_ = accept(result)) {
-                if (kind === "field") initializers.push(_);
+                if (kind === "field") initializers.unshift(_);
                 else descriptor[key] = _;
             }
         }
@@ -53326,6 +53678,53 @@ var __createBinding;
         return typeof state === "function" ? receiver === state : state.has(receiver);
     };
 
+    __addDisposableResource = function (env, value, async) {
+        if (value !== null && value !== void 0) {
+            if (typeof value !== "object" && typeof value !== "function") throw new TypeError("Object expected.");
+            var dispose;
+            if (async) {
+                if (!Symbol.asyncDispose) throw new TypeError("Symbol.asyncDispose is not defined.");
+                dispose = value[Symbol.asyncDispose];
+            }
+            if (dispose === void 0) {
+                if (!Symbol.dispose) throw new TypeError("Symbol.dispose is not defined.");
+                dispose = value[Symbol.dispose];
+            }
+            if (typeof dispose !== "function") throw new TypeError("Object not disposable.");
+            env.stack.push({ value: value, dispose: dispose, async: async });
+        }
+        else if (async) {
+            env.stack.push({ async: true });
+        }
+        return value;
+    };
+
+    var _SuppressedError = typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
+        var e = new Error(message);
+        return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
+    };
+
+    __disposeResources = function (env) {
+        function fail(e) {
+            env.error = env.hasError ? new _SuppressedError(e, env.error, "An error was suppressed during disposal.") : e;
+            env.hasError = true;
+        }
+        function next() {
+            while (env.stack.length) {
+                var rec = env.stack.pop();
+                try {
+                    var result = rec.dispose && rec.dispose.call(rec.value);
+                    if (rec.async) return Promise.resolve(result).then(next, function(e) { fail(e); return next(); });
+                }
+                catch (e) {
+                    fail(e);
+                }
+            }
+            if (env.hasError) throw env.error;
+        }
+        return next();
+    };
+
     exporter("__extends", __extends);
     exporter("__assign", __assign);
     exporter("__rest", __rest);
@@ -53355,6 +53754,8 @@ var __createBinding;
     exporter("__classPrivateFieldGet", __classPrivateFieldGet);
     exporter("__classPrivateFieldSet", __classPrivateFieldSet);
     exporter("__classPrivateFieldIn", __classPrivateFieldIn);
+    exporter("__addDisposableResource", __addDisposableResource);
+    exporter("__disposeResources", __disposeResources);
 });
 
 
