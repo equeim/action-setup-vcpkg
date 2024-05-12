@@ -1,11 +1,16 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
-import { ChildProcess, SpawnOptions, spawn } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import { Ajv } from 'ajv';
+import formatsPlugin from 'ajv-formats';
 import { AbortActionError, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, Inputs, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain, setEnvVariable } from './common.js';
+import { VCPKG_CONFIGURATION_JSON_SCHEMA, VCPKG_JSON_SCHEMA, VCPKG_SCHEMA_DEFINITIONS } from './schemas.js';
 
+
+const DEFAULT_VCPKG_URL = 'https://github.com/microsoft/vcpkg.git';
 
 async function execProcess(process: ChildProcess) {
     const exitCode: number = await new Promise((resolve, reject) => {
@@ -17,16 +22,10 @@ async function execProcess(process: ChildProcess) {
     }
 }
 
-async function execCommand(command: string, args: string[], options?: SpawnOptions) {
+async function execCommand(command: string, args: string[], shell?: boolean) {
     console.info('Executing command', command, 'with arguments', args);
-    if (!options) {
-        options = {};
-    }
-    if (!options.stdio) {
-        options.stdio = 'inherit';
-    }
     try {
-        const child = spawn(command, args, options);
+        const child = spawn(command, args, { stdio: 'inherit', shell: shell ?? false });
         await execProcess(child);
     } catch (error) {
         console.error(error);
@@ -129,24 +128,76 @@ function resolveVcpkgRoot(inputs: Inputs): string {
     return vcpkgRoot;
 }
 
-async function extractVcpkgCommit(): Promise<string> {
+type VcpkgRepositoryInfo = {
+    url: string;
+    commit: string;
+};
+
+async function extractVcpkgRepositoryInfo(): Promise<VcpkgRepositoryInfo> {
     try {
-        const vcpkgConfigurationData = await fs.readFile('vcpkg-configuration.json', { encoding: 'utf-8' });
-        const commit = JSON.parse(vcpkgConfigurationData)['default-registry']['baseline'];
-        if (typeof (commit) === 'string') {
-            console.info('Vcpkg commit is', commit);
-            return commit;
+        let url: string | undefined;
+        let commit: string | undefined;
+        const ajv = new Ajv();
+        formatsPlugin.default(ajv);
+        ajv.addSchema(VCPKG_SCHEMA_DEFINITIONS);
+        try {
+            const vcpkgConfigurationJsonData = await fs.readFile('vcpkg-configuration.json', { encoding: 'utf-8' });
+            const vcpkgConfigurationJson = JSON.parse(vcpkgConfigurationJsonData);
+            const vcpkgConfigurationJsonValidator = ajv.compile<any>(VCPKG_CONFIGURATION_JSON_SCHEMA);
+            if (!vcpkgConfigurationJsonValidator(vcpkgConfigurationJson)) {
+                console.error('Failed to validate vcpkg-configuration.json:', vcpkgConfigurationJsonValidator.errors);
+                throw Error('Failed to validate vcpkg-configuration.json');
+            }
+            const defaultRegistry = vcpkgConfigurationJson['default-registry'];
+            if (typeof (defaultRegistry) === 'undefined') {
+                throw Error('vcpkg-configuration.json does not contain "default-registry" field');
+            }
+            const kind = defaultRegistry['kind'];
+            switch (kind) {
+                case 'builtin':
+                    url = DEFAULT_VCPKG_URL;
+                    break;
+                case 'git':
+                    url = defaultRegistry['repository'];
+                    break;
+                default:
+                    throw Error(`Registry kind '${kind}' is not supported`);
+            }
+            commit = defaultRegistry['baseline'];
+        } catch (error: any) {
+            if (error?.code === 'ENOENT') {
+                const vcpkgJsonData = await fs.readFile('vcpkg.json', { encoding: 'utf-8' });
+                const vcpkgJson = JSON.parse(vcpkgJsonData);
+                const vcpkgJsonValidator = ajv.compile<any>(VCPKG_JSON_SCHEMA);
+                if (!vcpkgJsonValidator(vcpkgJson)) {
+                    console.error('Failed to validate vcpkg.json:', vcpkgJsonValidator.errors);
+                    throw Error('Failed to validate vcpkg.json');
+                }
+                commit = vcpkgJson['builtin-baseline'];
+                if (typeof (commit) === 'undefined') {
+                    throw Error('vcpkg.json does not contain "builtin-baseline" field');
+                }
+                url = DEFAULT_VCPKG_URL;
+            } else {
+                throw error;
+            }
         }
-        throw new Error('Failed to extract commit from parsed JSON');
+        if (typeof (url) !== 'string') {
+            throw Error('Repository URL is unknown');
+        }
+        if (typeof (commit) !== 'string') {
+            throw Error('Repository commit is unknown');
+        }
+        return { url: url, commit: commit };
     } catch (error) {
         console.error(error);
-        throw new AbortActionError(`Failed to extract vcpkg commit with error '${errorAsString(error)}'`);
+        throw new AbortActionError(`Failed to extract vcpkg repository info with error '${errorAsString(error)}'`);
     }
 }
 
 async function setupVcpkg(vcpkgRoot: string): Promise<string> {
     core.startGroup('Set up vcpkg');
-    const commit = await extractVcpkgCommit();
+    const repositoryInfo = await extractVcpkgRepositoryInfo();
     let checkoutExistingDirectory: boolean;
     try {
         const stats = await fs.stat(vcpkgRoot);
@@ -156,22 +207,25 @@ async function setupVcpkg(vcpkgRoot: string): Promise<string> {
     }
 
     if (checkoutExistingDirectory) {
-        await execCommand('git', ['-C', vcpkgRoot, 'fetch']);
-        await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
+        const remoteName = 'action-setup-vcpkg';
+        await execCommand('git', ['-C', vcpkgRoot, 'remote', 'add', remoteName, repositoryInfo.url]);
+        await execCommand('git', ['-C', vcpkgRoot, 'fetch', remoteName]);
+        await execCommand('git', ['-C', vcpkgRoot, 'checkout', repositoryInfo.commit]);
     } else {
-        await execCommand('git', ['clone', '--no-checkout', 'https://github.com/microsoft/vcpkg.git', vcpkgRoot]);
-        await execCommand('git', ['-C', vcpkgRoot, 'checkout', commit]);
+        await execCommand('git', ['clone', '--no-checkout', repositoryInfo.url, vcpkgRoot]);
+        await execCommand('git', ['-C', vcpkgRoot, 'checkout', repositoryInfo.commit]);
     }
 
     let bootstrapScript: string;
-    let spawnOptions: SpawnOptions = {};
+    let shell: boolean;
     if (os.platform() == 'win32') {
         bootstrapScript = 'bootstrap-vcpkg.bat';
-        spawnOptions.shell = true;
+        shell = true;
     } else {
         bootstrapScript = 'bootstrap-vcpkg.sh';
+        shell = false;
     }
-    await execCommand(path.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], spawnOptions);
+    await execCommand(path.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], shell);
 
     core.endGroup();
 
@@ -214,7 +268,7 @@ async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
 
 async function main() {
     const inputs = parseInputs();
-    await restoreCache(inputs);
+    //await restoreCache(inputs);
     if (inputs.runSetup || inputs.runInstall) {
         const vcpkgRoot = resolveVcpkgRoot(inputs);
         if (inputs.runSetup) {

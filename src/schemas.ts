@@ -1,0 +1,1130 @@
+export const VCPKG_SCHEMA_DEFINITIONS = {
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-schema-definitions.schema.json",
+    "definitions": {
+        "artifact-references": {
+            "description": "A key/value pair of artifact name to selected artifact version.",
+            "type": "object",
+            "patternProperties": {
+                "": {
+                    "type": "string"
+                }
+            }
+        },
+        "artifact-registry": {
+            "description": "An artifact registry backed by a git repository.",
+            "type": "object",
+            "if": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "artifact"
+                        ]
+                    }
+                },
+                "required": [
+                    "kind"
+                ]
+            },
+            "then": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "artifact"
+                        ]
+                    },
+                    "name": {
+                        "$ref": "#/definitions/identifier"
+                    },
+                    "location": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "A URI to the location of the artifact registry; typically a git URI."
+                    }
+                },
+                "required": [
+                    "kind",
+                    "name",
+                    "location"
+                ],
+                "patternProperties": {
+                    "^\\$": {}
+                },
+                "additionalProperties": false
+            },
+            "else": false
+        },
+        "builtin-registry": {
+            "type": "object",
+            "if": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "builtin"
+                        ]
+                    }
+                },
+                "required": [
+                    "kind"
+                ]
+            },
+            "then": {
+                "properties": {
+                    "baseline": {
+                        "$ref": "#/definitions/sha1",
+                        "description": "The SHA that will be checked out to find default versions for ports from this registry."
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "builtin"
+                        ]
+                    },
+                    "packages": true
+                },
+                "required": [
+                    "baseline",
+                    "kind"
+                ],
+                "patternProperties": {
+                    "^\\$": {}
+                },
+                "additionalProperties": false
+            },
+            "else": false
+        },
+        "contact": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/string-or-strings"
+                }
+            },
+            "required": [
+                "role"
+            ],
+            "patternProperties": {
+                "^\\$": {}
+            },
+            "additionalProperties": false
+        },
+        "contacts": {
+            "type": "object",
+            "patternProperties": {
+                "": {
+                    "$ref": "#/definitions/contact"
+                }
+            }
+        },
+        "default-registry": {
+            "type": "object",
+            "allOf": [
+                {
+                    "properties": {
+                        "kind": {
+                            "type": "string",
+                            "enum": [
+                                "builtin",
+                                "git",
+                                "filesystem"
+                            ]
+                        },
+                        "packages": false
+                    }
+                },
+                {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/builtin-registry"
+                        },
+                        {
+                            "$ref": "#/definitions/git-registry"
+                        },
+                        {
+                            "$ref": "#/definitions/filesystem-registry"
+                        }
+                    ]
+                }
+            ]
+        },
+        "demands": {
+            "description": "A set of filters to conditionally apply artifact pieces. Typically contains other 'requires' or similar elements. The keys are platform expressions with identifiers assumed to refer to the host.",
+            "type": "object",
+            "patternProperties": {
+                "": {
+                    "type": "object",
+                    "properties": {
+                        "error": {
+                            "type": "string",
+                            "description": "An error message to print if this entry is evaluated."
+                        },
+                        "warning": {
+                            "type": "string",
+                            "description": "A warning message to print if this entry is evaluated."
+                        },
+                        "message": {
+                            "type": "string",
+                            "description": "A message to print if this entry is evaluated."
+                        },
+                        "exports": {
+                            "$ref": "#/definitions/exports"
+                        },
+                        "requires": {
+                            "description": "Artifacts that are required for this package to function.",
+                            "$ref": "#/definitions/artifact-references"
+                        },
+                        "install": {
+                            "$ref": "#/definitions/install"
+                        }
+                    },
+                    "patternProperties": {
+                        "^\\$": {}
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "dependency": {
+            "description": "A port dependency fetchable by vcpkg.",
+            "oneOf": [
+                {
+                    "$ref": "#/definitions/port-name"
+                },
+                {
+                    "$ref": "#/definitions/dependency-object"
+                }
+            ]
+        },
+        "dependency-object": {
+            "description": "Expanded form of a dependency with explicit features and platform.",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/port-name"
+                },
+                "features": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dependency-feature"
+                    }
+                },
+                "host": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "default-features": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "platform": {
+                    "$ref": "#/definitions/platform-expression"
+                },
+                "version>=": {
+                    "description": "Minimum required version",
+                    "type": "string",
+                    "pattern": "^[^#]+(#\\d+)?$"
+                }
+            },
+            "required": [
+                "name"
+            ],
+            "patternProperties": {
+                "^\\$": {}
+            },
+            "additionalProperties": false
+        },
+        "dependency-feature-object": {
+            "description": "Expanded form of a dependency feature with platform expression.",
+            "type": "object",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/identifier"
+                },
+                "platform": {
+                    "$ref": "#/definitions/platform-expression"
+                }
+            },
+            "required": [
+                "name"
+            ],
+            "additionalProperties": false
+        },
+        "dependency-feature": {
+            "description": "A feature",
+            "oneOf": [
+                {
+                    "$ref": "#/definitions/identifier"
+                },
+                {
+                    "$ref": "#/definitions/dependency-feature-object"
+                }
+            ]
+        },
+        "description-field": {
+            "description": "A string or array of strings containing the description of a package or feature.",
+            "$ref": "#/definitions/string-or-strings"
+        },
+        "exports": {
+            "type": "object",
+            "properties": {
+                "aliases": {
+                    "$ref": "#/definitions/string-map"
+                },
+                "defines": {
+                    "$ref": "#/definitions/string-map"
+                },
+                "environment": {
+                    "$ref": "#/definitions/strings-map"
+                },
+                "locations": {
+                    "$ref": "#/definitions/string-map"
+                },
+                "msbuild-properties": {
+                    "description": "Properties written verbatim when generating msbuild props for an activation, with $root$ replaced with the ultimate extraction root for this artifact. $root$ never contains a trailing backslash.",
+                    "type": "object",
+                    "patternProperties": {
+                        "": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "paths": {
+                    "$ref": "#/definitions/strings-map"
+                },
+                "properties": {
+                    "$ref": "#/definitions/strings-map"
+                },
+                "tools": {
+                    "$ref": "#/definitions/string-map"
+                }
+            },
+            "additionalProperties": false
+        },
+        "feature": {
+            "description": "A package feature that can be selected by consumers.",
+            "type": "object",
+            "properties": {
+                "description": {
+                    "$ref": "#/definitions/description-field"
+                },
+                "dependencies": {
+                    "description": "Dependencies used by this feature.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dependency"
+                    }
+                },
+                "supports": {
+                    "$ref": "#/definitions/platform-expression"
+                },
+                "license": {
+                    "$ref": "#/definitions/license"
+                }
+            },
+            "required": [
+                "description"
+            ],
+            "patternProperties": {
+                "^\\$": {}
+            },
+            "additionalProperties": false
+        },
+        "filesystem-registry": {
+            "description": "A port registry backed by a filesystem layout.",
+            "type": "object",
+            "if": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "filesystem"
+                        ]
+                    }
+                },
+                "required": [
+                    "kind"
+                ]
+            },
+            "then": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "filesystem"
+                        ]
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "The location on the filesystem where the registry is rooted."
+                    },
+                    "packages": true
+                },
+                "required": [
+                    "kind",
+                    "path"
+                ],
+                "patternProperties": {
+                    "^\\$": {}
+                },
+                "additionalProperties": false
+            },
+            "else": false
+        },
+        "info-block": {
+            "type": "object",
+            "properties": {
+                "version": {
+                    "$ref": "#/definitions/semantic-version"
+                },
+                "id": {
+                    "$ref": "#/definitions/slash-identifier"
+                },
+                "summary": {
+                    "description": "A shorter description of the artifact.",
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                },
+                "description": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/string-array",
+                    "default": []
+                }
+            },
+            "required": [
+                "version",
+                "id"
+            ],
+            "patternProperties": {
+                "^\\$": {}
+            },
+            "additionalProperties": false
+        },
+        "install": {
+            "if": {
+                "type": "object"
+            },
+            "then": {
+                "$ref": "#/definitions/install-instance"
+            },
+            "else": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/definitions/install-instance"
+                }
+            }
+        },
+        "install-instance": {
+            "type": "object",
+            "properties": {
+                "unzip": {
+                    "$ref": "#/definitions/uri-or-uris"
+                },
+                "untar": {
+                    "$ref": "#/definitions/uri-or-uris"
+                },
+                "nupkg": {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "git": {
+                    "type": "string",
+                    "description": "The http or ssh remote from which a git repo will be fetched."
+                }
+            },
+            "oneOf": [
+                {
+                    "required": [
+                        "unzip"
+                    ]
+                },
+                {
+                    "required": [
+                        "untar"
+                    ]
+                },
+                {
+                    "required": [
+                        "nupkg"
+                    ]
+                },
+                {
+                    "required": [
+                        "git"
+                    ]
+                }
+            ],
+            "dependencies": {
+                "unzip": {
+                    "properties": {
+                        "unzip": {},
+                        "sha256": {
+                            "$ref": "#/definitions/sha256"
+                        },
+                        "sha512": {
+                            "$ref": "#/definitions/sha512"
+                        },
+                        "strip": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "default": 0
+                        },
+                        "transform": {
+                            "type": "string",
+                            "description": "An SED expression to run on the file names before extracting them."
+                        },
+                        "lang": {
+                            "type": "string",
+                            "description": "The locale under which this install should be applied."
+                        },
+                        "nametag": {
+                            "type": "string",
+                            "description": "A string to add to the name of the artifact when extracted on disk."
+                        }
+                    },
+                    "required": [
+                        "unzip"
+                    ],
+                    "patternProperties": {
+                        "^\\$": {}
+                    },
+                    "additionalProperties": false
+                },
+                "untar": {
+                    "properties": {
+                        "untar": {},
+                        "sha256": {
+                            "$ref": "#/definitions/sha256"
+                        },
+                        "sha512": {
+                            "$ref": "#/definitions/sha512"
+                        },
+                        "strip": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "default": 0
+                        },
+                        "transform": {
+                            "type": "string",
+                            "description": "An SED expression to run on the file names before extracting them."
+                        }
+                    },
+                    "required": [
+                        "untar"
+                    ],
+                    "patternProperties": {
+                        "^\\$": {}
+                    },
+                    "additionalProperties": false
+                },
+                "nupkg": {
+                    "properties": {
+                        "nupkg": {},
+                        "sha256": {
+                            "$ref": "#/definitions/sha256"
+                        },
+                        "sha512": {
+                            "$ref": "#/definitions/sha512"
+                        },
+                        "strip": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "default": 0
+                        },
+                        "transform": {
+                            "type": "string",
+                            "description": "An SED expression to run on the file names before extracting them."
+                        },
+                        "lang": {
+                            "type": "string",
+                            "description": "The locale under which this install should be applied."
+                        },
+                        "nametag": {
+                            "type": "string",
+                            "description": "A string to add to the name of the artifact when extracted on disk."
+                        }
+                    },
+                    "required": [
+                        "nupkg"
+                    ],
+                    "patternProperties": {
+                        "^\\$": {}
+                    },
+                    "additionalProperties": false
+                },
+                "git": {
+                    "properties": {
+                        "git": {},
+                        "commit": {
+                            "type": "string",
+                            "description": "The commit SHA or ref that will be checked out."
+                        },
+                        "options": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "full",
+                                    "recurse"
+                                ]
+                            }
+                        },
+                        "subdirectory": {
+                            "type": "string",
+                            "default": ""
+                        }
+                    },
+                    "required": [
+                        "git"
+                    ],
+                    "patternProperties": {
+                        "^\\$": {}
+                    },
+                    "additionalProperties": false
+                }
+            }
+        },
+        "git-registry": {
+            "type": "object",
+            "description": "A port registry backed by a git repo.",
+            "if": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "git"
+                        ]
+                    }
+                },
+                "required": [
+                    "kind"
+                ]
+            },
+            "then": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "git"
+                        ]
+                    },
+                    "repository": {
+                        "type": "string",
+                        "description": "The URI or SSH entry to clone from. (as if by `git clone`)"
+                    },
+                    "baseline": {
+                        "description": "The SHA that will be checked out to find default versions for ports from this registry.",
+                        "$ref": "#/definitions/sha1"
+                    },
+                    "reference": {
+                        "type": "string",
+                        "description": "The ref to fetch when cloning this git registry."
+                    },
+                    "packages": true
+                },
+                "required": [
+                    "kind",
+                    "repository",
+                    "baseline"
+                ],
+                "patternProperties": {
+                    "^\\$": {}
+                },
+                "additionalProperties": false
+            },
+            "else": false
+        },
+        "has-one-version": {
+            "type": "object",
+            "oneOf": [
+                {
+                    "required": [
+                        "version-string"
+                    ]
+                },
+                {
+                    "required": [
+                        "version"
+                    ]
+                },
+                {
+                    "required": [
+                        "version-semver"
+                    ]
+                },
+                {
+                    "required": [
+                        "version-date"
+                    ]
+                }
+            ]
+        },
+        "has-zero-or-one-version": {
+            "type": "object",
+            "oneOf": [
+                {
+                    "required": [
+                        "version-string"
+                    ]
+                },
+                {
+                    "required": [
+                        "version"
+                    ]
+                },
+                {
+                    "required": [
+                        "version-semver"
+                    ]
+                },
+                {
+                    "required": [
+                        "version-date"
+                    ]
+                },
+                {
+                    "not": {
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "version-string"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "version"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "version-semver"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "version-date"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        "identifier": {
+            "type": "string",
+            "description": "Identifiers used for port and feature names.",
+            "allOf": [
+                {
+                    "description": "Identifier are lowercase with digits and dashes.",
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                },
+                {
+                    "not": {
+                        "description": "Identifiers must not be a Windows filesystem or vcpkg reserved name.",
+                        "pattern": "^(prn|aux|nul|con|lpt[1-9]|com[1-9]|core|default)$"
+                    }
+                }
+            ]
+        },
+        "license": {
+            "description": "An SPDX license expression at version 3.9.",
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ]
+        },
+        "maintainers": {
+            "description": "An array of strings which contain the maintainers of a package",
+            "$ref": "#/definitions/string-or-strings"
+        },
+        "override": {
+            "description": "A version override.",
+            "allOf": [
+                {
+                    "type": "object",
+                    "$comment": "The regexes below have (#\\d+)? added to the end as overrides allow putting the port-version inline",
+                    "properties": {
+                        "name": {
+                            "$ref": "#/definitions/identifier"
+                        },
+                        "version-string": {
+                            "description": "Deprecated in favor of 'version' in overrides. Text used to identify an arbitrary version",
+                            "type": "string",
+                            "pattern": "^[^#]+(#\\d+)?$"
+                        },
+                        "version": {
+                            "description": "Text used to identify the overridden version.",
+                            "type": "string",
+                            "pattern": "^[^#]+(#\\d+)?$"
+                        },
+                        "version-date": {
+                            "description": "Deprecated in favor of 'version' in overrides. A date version string (e.g. 2020-01-20).",
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}(\\.\\d+)*(#\\d+)?$"
+                        },
+                        "version-semver": {
+                            "description": "Deprecated in favor of 'version' in overrides. A semantic version string. See https://semver.org/",
+                            "type": "string",
+                            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?(#\\d+)?$"
+                        },
+                        "port-version": {
+                            "description": "Deprecated in favor of being a part of 'version' in overrides. Specifies the port-version portion of the version. Overrides the value in one of the other version fields.",
+                            "$ref": "#/definitions/port-version"
+                        }
+                    },
+                    "required": [
+                        "name"
+                    ],
+                    "patternProperties": {
+                        "^\\$": {}
+                    },
+                    "additionalProperties": false
+                },
+                {
+                    "$ref": "#/definitions/has-one-version"
+                }
+            ]
+        },
+        "port-name": {
+            "type": "string",
+            "description": "Name of a package.",
+            "allOf": [
+                {
+                    "description": "Package name must be a dot-separated list of valid identifiers",
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(\\.[a-z0-9]+(-[a-z0-9]+)*)*$"
+                },
+                {
+                    "not": {
+                        "description": "Identifiers must not be a Windows filesystem or vcpkg reserved name.",
+                        "pattern": "(^|\\.)(prn|aux|nul|con|lpt[1-9]|com[1-9]|core|default)(\\.|$)"
+                    }
+                }
+            ]
+        },
+        "platform-expression": {
+            "description": "A specification of a set of platforms. See https://learn.microsoft.com/vcpkg/reference/vcpkg-json#platform-expression.",
+            "type": "string"
+        },
+        "port-version": {
+            "description": "A non-negative integer indicating the port revision. If this field doesn't exist, it's assumed to be `0`.",
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+        },
+        "registry-array": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/registry-item"
+            }
+        },
+        "registry-item": {
+            "type": "object",
+            "allOf": [
+                {
+                    "properties": {
+                        "kind": {
+                            "type": "string",
+                            "enum": [
+                                "builtin",
+                                "git",
+                                "filesystem",
+                                "artifact"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/artifact-registry"
+                        },
+                        {
+                            "allOf": [
+                                {
+                                    "properties": {
+                                        "packages": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/port-name"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "packages"
+                                    ]
+                                },
+                                {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/definitions/builtin-registry"
+                                        },
+                                        {
+                                            "$ref": "#/definitions/git-registry"
+                                        },
+                                        {
+                                            "$ref": "#/definitions/filesystem-registry"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        "semantic-version": {
+            "description": "A semantic version string. See https://semver.org/",
+            "type": "string",
+            "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+        },
+        "sha1": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{40}$"
+        },
+        "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "sha512": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{128}$"
+        },
+        "slash-identifier": {
+            "type": "string",
+            "description": "Slash identifiers are used for artifact names.",
+            "allOf": [
+                {
+                    "description": "Slash identifiers are lowercase with digits, dashes, and forward slashes.",
+                    "pattern": "^[a-z0-9]+([/-][a-z0-9]+)*$"
+                },
+                {
+                    "not": {
+                        "description": "Identifiers and parts delimited by slashes must not be a Windows filesystem or vcpkg reserved name.",
+                        "pattern": "(^|/)(prn|aux|nul|con|lpt[1-9]|com[1-9]|core|default)(/|$)"
+                    }
+                }
+            ]
+        },
+        "string-or-strings": {
+            "if": {
+                "type": "string"
+            },
+            "then": true,
+            "else": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "string-array": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "string-map": {
+            "type": "object",
+            "patternProperties": {
+                "": {
+                    "type": "string"
+                }
+            }
+        },
+        "strings-map": {
+            "type": "object",
+            "patternProperties": {
+                "": {
+                    "$ref": "#/definitions/string-or-strings"
+                }
+            }
+        },
+        "uri-or-uris": {
+            "if": {
+                "type": "string"
+            },
+            "then": {
+                "type": "string",
+                "format": "uri"
+            },
+            "else": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "format": "uri"
+                }
+            }
+        }
+    }
+};
+
+
+export const VCPKG_CONFIGURATION_JSON_SCHEMA = {
+    "$id": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
+    "type": "object",
+    "properties": {
+        "default-registry": {
+            "$ref": "vcpkg-schema-definitions.schema.json#/definitions/default-registry"
+        },
+        "registries": {
+            "$ref": "vcpkg-schema-definitions.schema.json#/definitions/registry-array"
+        },
+        "error": {
+            "type": "string",
+            "description": "An error message to print if this entry is evaluated."
+        },
+        "warning": {
+            "type": "string",
+            "description": "A warning message to print if this entry is evaluated."
+        },
+        "message": {
+            "type": "string",
+            "description": "A message to print if this entry is evaluated."
+        },
+        "overlay-ports": {
+            "type": "array",
+            "description": "An array of port overlay paths.",
+            "items": {
+                "type": "string"
+            }
+        },
+        "overlay-triplets": {
+            "type": "array",
+            "description": "An array of triplet overlay paths.",
+            "items": {
+                "type": "string"
+            }
+        },
+        "requires": {
+            "description": "Artifacts that are required for this package to function.",
+            "$ref": "vcpkg-schema-definitions.schema.json#/definitions/artifact-references"
+        }
+    },
+    "patternProperties": {
+        "^\\$": {}
+    },
+    "additionalProperties": false
+};
+
+export const VCPKG_JSON_SCHEMA = {
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "type": "object",
+    "allOf": [
+        {
+            "properties": {
+                "name": {
+                    "description": "The name of the top-level package",
+                    "$ref": "vcpkg-schema-definitions.schema.json#/definitions/port-name"
+                },
+                "version-string": {
+                    "description": "Text used to identify an arbitrary version",
+                    "type": "string",
+                    "pattern": "^[^#]+$"
+                },
+                "version": {
+                    "description": "A relaxed version string (1.2.3.4...)",
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d+)*(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+                },
+                "version-date": {
+                    "description": "A date version string (e.g. 2020-01-20)",
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}(\\.\\d+)*$"
+                },
+                "version-semver": {
+                    "$ref": "vcpkg-schema-definitions.schema.json#/definitions/semantic-version"
+                },
+                "port-version": {
+                    "$ref": "vcpkg-schema-definitions.schema.json#/definitions/port-version"
+                },
+                "maintainers": {
+                    "$ref": "vcpkg-schema-definitions.schema.json#/definitions/maintainers"
+                },
+                "summary": {
+                    "description": "A shorter description of the port or project.",
+                    "type": "string"
+                },
+                "description": {
+                    "$ref": "vcpkg-schema-definitions.schema.json#/definitions/description-field"
+                },
+                "homepage": {
+                    "description": "A url which points to the homepage of a package.",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "documentation": {
+                    "description": "A url which points to the documentation of a package.",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "license": {
+                    "$ref": "vcpkg-schema-definitions.schema.json#/definitions/license"
+                },
+                "builtin-baseline": {
+                    "description": "A vcpkg repository commit for version control.",
+                    "type": "string"
+                },
+                "dependencies": {
+                    "description": "Dependencies that are always required.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "vcpkg-schema-definitions.schema.json#/definitions/dependency"
+                    }
+                },
+                "overrides": {
+                    "description": "Version overrides for dependencies.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "vcpkg-schema-definitions.schema.json#/definitions/override"
+                    }
+                },
+                "features": {
+                    "description": "A map of features supported by the package",
+                    "type": "object",
+                    "patternProperties": {
+                        "": {
+                            "$ref": "vcpkg-schema-definitions.schema.json#/definitions/feature"
+                        }
+                    }
+                },
+                "default-features": {
+                    "description": "Features enabled by default with the package.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "vcpkg-schema-definitions.schema.json#/definitions/dependency-feature"
+                    }
+                },
+                "supports": {
+                    "$ref": "vcpkg-schema-definitions.schema.json#/definitions/platform-expression"
+                },
+                "vcpkg-configuration": {
+                    "description": "Embedded vcpkg.configuration.json file.",
+                    "$ref": "vcpkg-configuration.schema.json"
+                }
+            },
+            "patternProperties": {
+                "^\\$": {}
+            },
+            "additionalProperties": false
+        },
+        {
+            "$ref": "vcpkg-schema-definitions.schema.json#/definitions/has-zero-or-one-version"
+        }
+    ]
+};
