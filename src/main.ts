@@ -268,7 +268,7 @@ async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
 
 async function main() {
     const inputs = parseInputs();
-    //await restoreCache(inputs);
+    await restoreCache(inputs);
     if (inputs.runSetup || inputs.runInstall) {
         const vcpkgRoot = resolveVcpkgRoot(inputs);
         if (inputs.runSetup) {

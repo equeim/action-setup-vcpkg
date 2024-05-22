@@ -88787,17 +88787,19 @@ module.exports.implForWrapper = function (wrapper) {
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
   "oc": () => (/* binding */ AbortActionError),
+  "Eh": () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
   "uI": () => (/* binding */ ENV_VCPKG_INSTALLATION_ROOT),
   "YV": () => (/* binding */ ENV_VCPKG_ROOT),
+  "Ch": () => (/* binding */ binaryPackagesCountState),
+  "GF": () => (/* binding */ cacheKeyState),
   "ZT": () => (/* binding */ errorAsString),
+  "Ad": () => (/* binding */ findBinaryPackagesInDir),
   "j$": () => (/* binding */ getEnvVariable),
   "ch": () => (/* binding */ mainStepSucceededState),
   "_$": () => (/* binding */ parseInputs),
   "Aq": () => (/* binding */ runMain),
   "T9": () => (/* binding */ setEnvVariable)
 });
-
-// UNUSED EXPORTS: ENV_VCPKG_BINARY_CACHE, binaryPackagesCountState, cacheKeyState, findBinaryPackagesInDir
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
@@ -88887,10 +88889,10 @@ function isZipFile(fileName) {
     return fileName.endsWith(ZIP_EXTENSION);
 }
 async function findBinaryPackagesInDir(dirPath, onFoundPackage) {
-    const dir = await fs.opendir(dirPath);
+    const dir = await promises_.opendir(dirPath);
     for await (const dirent of dir) {
         if (dirent.isDirectory()) {
-            await findBinaryPackagesInDir(path.join(dirPath, dirent.name), onFoundPackage);
+            await findBinaryPackagesInDir(external_path_.join(dirPath, dirent.name), onFoundPackage);
         }
         else if (dirent.isFile() && isZipFile(dirent.name)) {
             onFoundPackage(dirPath, dirent.name);
@@ -88985,24 +88987,24 @@ async function execCommand(command, args, shell) {
     }
 }
 async function countBinaryPackages() {
-    core.startGroup('Counting packages in binary cache');
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Counting packages in binary cache');
     let count = 0;
-    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), (_dirPath, _fileName) => {
+    await (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .findBinaryPackagesInDir */ .Ad)((0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_CACHE */ .Eh), (_dirPath, _fileName) => {
         ++count;
     });
     return count;
 }
 async function restoreCache(inputs) {
-    core.startGroup('Restore cache');
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Restore cache');
     let fromEnv = false;
     let cacheDir = inputs.binaryCachePath;
     if (cacheDir) {
         console.info('Using binary cache path from action inputs');
     }
     else {
-        cacheDir = getEnvVariable(ENV_VCPKG_BINARY_CACHE, false);
+        cacheDir = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .j$)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_CACHE */ .Eh, false);
         if (cacheDir) {
-            console.info(`Using binary cache path from ${ENV_VCPKG_BINARY_CACHE} environment variable`);
+            console.info(`Using binary cache path from ${_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_CACHE */ .Eh} environment variable`);
             fromEnv = true;
         }
         else {
@@ -89010,24 +89012,24 @@ async function restoreCache(inputs) {
             cacheDir = 'vcpkg_binary_cache';
         }
     }
-    cacheDir = path.resolve(cacheDir);
+    cacheDir = path__WEBPACK_IMPORTED_MODULE_5__.resolve(cacheDir);
     console.info('Vcpkg binary cache path is', cacheDir);
     if (!fromEnv) {
-        setEnvVariable(ENV_VCPKG_BINARY_CACHE, cacheDir);
+        (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .setEnvVariable */ .T9)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_CACHE */ .Eh, cacheDir);
     }
     try {
-        await fs.mkdir(cacheDir, { recursive: true });
+        await fs_promises__WEBPACK_IMPORTED_MODULE_3__.mkdir(cacheDir, { recursive: true });
     }
     catch (error) {
         console.error(error);
-        throw new AbortActionError(`Failed to create cache directory with error ${errorAsString(error)}`);
+        throw new _common_js__WEBPACK_IMPORTED_MODULE_8__/* .AbortActionError */ .oc(`Failed to create cache directory with error ${(0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .errorAsString */ .ZT)(error)}`);
     }
     /**
      * Since there is no reliable way to know whether vcpkg will rebuild packages,
      * last part of key is GITHUB_RUN_ID so that exact matches never occur and cache is upload
      * only if vcpkg actually created new binary packages
      */
-    const runnerOs = getEnvVariable('RUNNER_OS');
+    const runnerOs = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .j$)('RUNNER_OS');
     let restoreKey = `vcpkg|RUNNER_OS=${runnerOs}`;
     if (inputs.cacheKeyTag) {
         restoreKey += `|tag=${inputs.cacheKeyTag}|`;
@@ -89036,28 +89038,28 @@ async function restoreCache(inputs) {
         restoreKey += `|tag is not set|`;
     }
     console.info('Cache restore key is', restoreKey);
-    const runId = getEnvVariable('GITHUB_RUN_ID');
+    const runId = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .j$)('GITHUB_RUN_ID');
     const key = `${restoreKey}GITHUB_RUN_ID=${runId}`;
-    core.saveState(cacheKeyState, key);
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .cacheKeyState */ .GF, key);
     console.info('Cache key is', key);
     try {
-        const hitKey = await cache.restoreCache([cacheDir], key, [restoreKey]);
+        const hitKey = await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.restoreCache([cacheDir], key, [restoreKey]);
         if (hitKey != null) {
             console.info('Cache hit on key', hitKey);
             const binaryPackagesCount = (await countBinaryPackages());
-            core.saveState(binaryPackagesCountState, binaryPackagesCount.toString());
+            _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .binaryPackagesCountState */ .Ch, binaryPackagesCount.toString());
             console.info('Binary packages count is', binaryPackagesCount);
         }
         else {
             console.info('Cache miss');
-            core.saveState(binaryPackagesCountState, '0');
+            _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .binaryPackagesCountState */ .Ch, '0');
         }
     }
     catch (error) {
         console.error(error);
-        core.error(`Failed to restore cache with error ${errorAsString(error)}`);
+        _actions_core__WEBPACK_IMPORTED_MODULE_1__.error(`Failed to restore cache with error ${(0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .errorAsString */ .ZT)(error)}`);
     }
-    core.endGroup();
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
 }
 function resolveVcpkgRoot(inputs) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Determining vcpkg root directory');
@@ -89216,7 +89218,7 @@ async function runVcpkgInstall(inputs, vcpkgRoot) {
 }
 async function main() {
     const inputs = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .parseInputs */ ._$)();
-    //await restoreCache(inputs);
+    await restoreCache(inputs);
     if (inputs.runSetup || inputs.runInstall) {
         const vcpkgRoot = resolveVcpkgRoot(inputs);
         if (inputs.runSetup) {
