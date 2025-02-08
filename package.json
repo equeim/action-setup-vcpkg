@@ -22,7 +22,7 @@
     "yauzl": "^3.2.0"
   },
   "devDependencies": {
-    "@types/node": "^20.17.12",
+    "@types/node": "^20.17.17",
     "@types/yauzl": "^2.10.3",
     "@vercel/ncc": "^0.38.3",
     "typescript": "^5.7.3"
