@@ -71099,37 +71099,16 @@ function parseInputs() {
     core.startGroup('Parsing action inputs');
     const runSetup = getInputVerbose('run-setup', { required: false });
     const vcpkgRoot = getInputVerbose('vcpkg-root', { required: false });
-    const runInstall = getInputVerbose('run-install', { required: false });
-    const installRoot = getInputVerbose('install-root', { required: false });
-    const triplet = getInputVerbose('triplet', { required: false });
-    const hostTriplet = getInputVerbose('host-triplet', { required: false });
-    const installFeatures = getInputVerbose('install-features', { required: false });
-    const installCleanBuildtrees = getInputVerbose('install-clean-buildtrees', { required: false });
-    const installCleanPackages = getInputVerbose('install-clean-packages', { required: false });
-    const installCleanDownloads = getInputVerbose('install-clean-downloads', { required: false });
-    const overlayTripletsPath = getInputVerbose('overlay-triplets-path', { required: false });
     const binaryCachePath = getInputVerbose('binary-cache-path', { required: false });
     const saveCache = getInputVerbose('save-cache', { required: false });
     const cacheKeyTag = getInputVerbose('cache-key-tag', { required: false });
     const inputs = {
         runSetup: runSetup === 'true',
         vcpkgRoot: vcpkgRoot,
-        runInstall: runInstall === 'true',
-        installRoot: installRoot,
-        triplet: triplet,
-        hostTriplet: hostTriplet,
-        installFeatures: installFeatures.split(/\s+/).filter(Boolean),
-        installCleanBuildtrees: installCleanBuildtrees === 'true',
-        installCleanPackages: installCleanPackages === 'true',
-        installCleanDownloads: installCleanDownloads === 'true',
-        overlayTripletsPath: overlayTripletsPath,
         binaryCachePath: binaryCachePath,
         saveCache: saveCache === 'true',
         cacheKeyTag: cacheKeyTag
     };
-    if (inputs.runInstall && !triplet) {
-        throw new AbortActionError('Triplet must be defined');
-    }
     core.endGroup();
     return inputs;
 }
@@ -71454,50 +71433,13 @@ async function setupVcpkg(vcpkgRoot) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
     return vcpkgRoot;
 }
-async function runVcpkgInstall(inputs, vcpkgRoot) {
-    _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Run vcpkg install');
-    let installRoot = inputs.installRoot;
-    if (installRoot) {
-        console.info('Using vcpkg root path from action inputs');
-    }
-    else {
-        console.info('Using default vcpkg install root path');
-        installRoot = 'vcpkg_installed';
-    }
-    installRoot = path__WEBPACK_IMPORTED_MODULE_5__.resolve(installRoot);
-    console.info('Vcpkg install root path is', installRoot);
-    const args = ['install', `--x-install-root=${installRoot}`, `--triplet=${inputs.triplet}`];
-    if (inputs.hostTriplet) {
-        args.push(`--host-triplet=${inputs.hostTriplet}`);
-    }
-    if (inputs.installCleanBuildtrees) {
-        args.push('--clean-buildtrees-after-build');
-    }
-    if (inputs.installCleanPackages) {
-        args.push('--clean-packages-after-build');
-    }
-    if (inputs.installCleanDownloads) {
-        args.push('--clean-downloads-after-build');
-    }
-    for (const feature of inputs.installFeatures) {
-        args.push(`--x-feature=${feature}`);
-    }
-    if (inputs.overlayTripletsPath) {
-        args.push(`--overlay-triplets=${inputs.overlayTripletsPath}`);
-    }
-    await execCommand(path__WEBPACK_IMPORTED_MODULE_5__.join(vcpkgRoot, 'vcpkg'), args);
-    _actions_core__WEBPACK_IMPORTED_MODULE_1__.endGroup();
-}
 async function main() {
     const inputs = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .parseInputs */ .TL)();
     await restoreCache(inputs);
-    if (inputs.runSetup || inputs.runInstall) {
+    if (inputs.runSetup) {
         const vcpkgRoot = resolveVcpkgRoot(inputs);
         if (inputs.runSetup) {
             await setupVcpkg(vcpkgRoot);
-        }
-        if (inputs.runInstall) {
-            await runVcpkgInstall(inputs, vcpkgRoot);
         }
     }
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .mainStepSucceededState */ .oN, 'true');

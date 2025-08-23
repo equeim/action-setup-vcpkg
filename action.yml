@@ -1,6 +1,5 @@
 name: 'Set up vcpkg'
 inputs:
-  # Inputs related to vcpkg root
   run-setup:
     description: Set up vcpkg root directory
     required: false
@@ -9,44 +8,6 @@ inputs:
     description: Vcpkg root directory
     required: false
     default: ''
-  # Inputs for running `vcpkg install`
-  run-install:
-    description: Run vcpkg install command
-    required: false
-    default: 'false'
-  install-root:
-    description: Vcpkg install root directory
-    required: false
-    default: ''
-  triplet:
-    description: 'Vcpkg triplet (required when run-install is true)'
-    required: false
-    default: ''
-  host-triplet:
-    description: 'Vcpkg host triplet'
-    required: false
-    default: ''
-  install-features:
-    description: 'Vcpkg manifest features'
-    required: false
-    default: ''
-  install-clean-buildtrees:
-    description: 'Clean buildtrees after building each package'
-    required: false
-    default: 'true'
-  install-clean-packages:
-    description: 'Clean packages after building each package'
-    required: false
-    default: 'true'
-  install-clean-downloads:
-    description: 'Clean downloads after building each package'
-    required: false
-    default: 'false'
-  overlay-triplets-path:
-    description: Path to overlay triplets directory
-    required: false
-    default: ''
-  # Inputs for saving and restoring binary cache
   binary-cache-path:
     description: 'Vcpkg binary cache path'
     required: false

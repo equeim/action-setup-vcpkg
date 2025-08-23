@@ -11,15 +11,6 @@ export const mainStepSucceededState = 'mainStepSucceeded' as const;
 export type Inputs = {
     runSetup: boolean;
     vcpkgRoot: string;
-    runInstall: boolean;
-    installRoot: string;
-    triplet: string;
-    hostTriplet: string;
-    installFeatures: string[];
-    installCleanBuildtrees: boolean;
-    installCleanPackages: boolean;
-    installCleanDownloads: boolean;
-    overlayTripletsPath: string;
     binaryCachePath: string;
     saveCache: boolean;
     cacheKeyTag: string;
@@ -35,37 +26,16 @@ export function parseInputs(): Inputs {
     core.startGroup('Parsing action inputs');
     const runSetup = getInputVerbose('run-setup', { required: false });
     const vcpkgRoot = getInputVerbose('vcpkg-root', { required: false });
-    const runInstall = getInputVerbose('run-install', { required: false });
-    const installRoot = getInputVerbose('install-root', { required: false });
-    const triplet = getInputVerbose('triplet', { required: false });
-    const hostTriplet = getInputVerbose('host-triplet', { required: false });
-    const installFeatures = getInputVerbose('install-features', { required: false });
-    const installCleanBuildtrees = getInputVerbose('install-clean-buildtrees', { required: false });
-    const installCleanPackages = getInputVerbose('install-clean-packages', { required: false });
-    const installCleanDownloads = getInputVerbose('install-clean-downloads', { required: false });
-    const overlayTripletsPath = getInputVerbose('overlay-triplets-path', { required: false });
     const binaryCachePath = getInputVerbose('binary-cache-path', { required: false });
     const saveCache = getInputVerbose('save-cache', { required: false });
     const cacheKeyTag = getInputVerbose('cache-key-tag', { required: false });
     const inputs = {
         runSetup: runSetup === 'true',
         vcpkgRoot: vcpkgRoot,
-        runInstall: runInstall === 'true',
-        installRoot: installRoot,
-        triplet: triplet,
-        hostTriplet: hostTriplet,
-        installFeatures: installFeatures.split(/\s+/).filter(Boolean),
-        installCleanBuildtrees: installCleanBuildtrees === 'true',
-        installCleanPackages: installCleanPackages === 'true',
-        installCleanDownloads: installCleanDownloads === 'true',
-        overlayTripletsPath: overlayTripletsPath,
         binaryCachePath: binaryCachePath,
         saveCache: saveCache === 'true',
         cacheKeyTag: cacheKeyTag
     };
-    if (inputs.runInstall && !triplet) {
-        throw new AbortActionError('Triplet must be defined');
-    }
     core.endGroup();
     return inputs;
 }

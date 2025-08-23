@@ -232,50 +232,13 @@ async function setupVcpkg(vcpkgRoot: string): Promise<string> {
     return vcpkgRoot;
 }
 
-async function runVcpkgInstall(inputs: Inputs, vcpkgRoot: string) {
-    core.startGroup('Run vcpkg install');
-    let installRoot = inputs.installRoot;
-    if (installRoot) {
-        console.info('Using vcpkg root path from action inputs');
-    } else {
-        console.info('Using default vcpkg install root path');
-        installRoot = 'vcpkg_installed';
-    }
-    installRoot = path.resolve(installRoot);
-    console.info('Vcpkg install root path is', installRoot);
-    const args = ['install', `--x-install-root=${installRoot}`, `--triplet=${inputs.triplet}`];
-    if (inputs.hostTriplet) {
-        args.push(`--host-triplet=${inputs.hostTriplet}`);
-    }
-    if (inputs.installCleanBuildtrees) {
-        args.push('--clean-buildtrees-after-build');
-    }
-    if (inputs.installCleanPackages) {
-        args.push('--clean-packages-after-build');
-    }
-    if (inputs.installCleanDownloads) {
-        args.push('--clean-downloads-after-build');
-    }
-    for (const feature of inputs.installFeatures) {
-        args.push(`--x-feature=${feature}`);
-    }
-    if (inputs.overlayTripletsPath) {
-        args.push(`--overlay-triplets=${inputs.overlayTripletsPath}`);
-    }
-    await execCommand(path.join(vcpkgRoot, 'vcpkg'), args);
-    core.endGroup();
-}
-
 async function main() {
     const inputs = parseInputs();
     await restoreCache(inputs);
-    if (inputs.runSetup || inputs.runInstall) {
+    if (inputs.runSetup) {
         const vcpkgRoot = resolveVcpkgRoot(inputs);
         if (inputs.runSetup) {
             await setupVcpkg(vcpkgRoot);
-        }
-        if (inputs.runInstall) {
-            await runVcpkgInstall(inputs, vcpkgRoot);
         }
     }
     core.saveState(mainStepSucceededState, 'true');
