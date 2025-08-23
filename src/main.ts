@@ -6,7 +6,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { Ajv } from 'ajv';
 import formatsPlugin from 'ajv-formats';
-import { AbortActionError, ENV_VCPKG_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, Inputs, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain, setEnvVariable } from './common.js';
+import { AbortActionError, ENV_VCPKG_BINARY_SOURCES, ENV_VCPKG_DEFAULT_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, Inputs, binaryCachePathState, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain, setEnvVariable } from './common.js';
 import { VCPKG_CONFIGURATION_JSON_SCHEMA, VCPKG_JSON_SCHEMA, VCPKG_SCHEMA_DEFINITIONS } from './schemas.js';
 
 
@@ -33,10 +33,10 @@ async function execCommand(command: string, args: string[], shell?: boolean) {
     }
 }
 
-async function countBinaryPackages(): Promise<number> {
+async function countBinaryPackages(binaryCachePath: string): Promise<number> {
     core.startGroup('Counting packages in binary cache');
     let count = 0;
-    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), (_dirPath, _fileName) => {
+    await findBinaryPackagesInDir(binaryCachePath, (_dirPath, _fileName) => {
         ++count;
     });
     return count;
@@ -45,15 +45,13 @@ async function countBinaryPackages(): Promise<number> {
 async function restoreCache(inputs: Inputs) {
     core.startGroup('Restore cache');
 
-    let fromEnv = false;
     let cacheDir: string | undefined = inputs.binaryCachePath;
     if (cacheDir) {
         console.info('Using binary cache path from action inputs');
     } else {
-        cacheDir = getEnvVariable(ENV_VCPKG_BINARY_CACHE, false);
+        cacheDir = getEnvVariable(ENV_VCPKG_DEFAULT_BINARY_CACHE, false);
         if (cacheDir) {
-            console.info(`Using binary cache path from ${ENV_VCPKG_BINARY_CACHE} environment variable`);
-            fromEnv = true;
+            console.info(`Using binary cache path from ${ENV_VCPKG_DEFAULT_BINARY_CACHE} environment variable`);
         } else {
             console.info('Using default binary cache path');
             cacheDir = 'vcpkg_binary_cache';
@@ -61,9 +59,8 @@ async function restoreCache(inputs: Inputs) {
     }
     cacheDir = path.resolve(cacheDir);
     console.info('Vcpkg binary cache path is', cacheDir);
-    if (!fromEnv) {
-        setEnvVariable(ENV_VCPKG_BINARY_CACHE, cacheDir);
-    }
+    setEnvVariable(ENV_VCPKG_BINARY_SOURCES, `clear;files,${cacheDir},${inputs.saveCache ? 'readwrite' : 'read'}`);
+    core.saveState(binaryCachePathState, cacheDir);
     try {
         await fs.mkdir(cacheDir, { recursive: true });
     } catch (error) {
@@ -92,7 +89,7 @@ async function restoreCache(inputs: Inputs) {
         const hitKey = await cache.restoreCache([cacheDir], key, [restoreKey]);
         if (hitKey != null) {
             console.info('Cache hit on key', hitKey);
-            const binaryPackagesCount = (await countBinaryPackages());
+            const binaryPackagesCount = (await countBinaryPackages(cacheDir));
             core.saveState(binaryPackagesCountState, binaryPackagesCount.toString());
             console.info('Binary packages count is', binaryPackagesCount);
         } else {

@@ -5,6 +5,7 @@ import * as path from 'path';
 import { env } from 'process';
 
 export const cacheKeyState = 'cacheKey' as const;
+export const binaryCachePathState = 'binaryCachePath' as const;
 export const binaryPackagesCountState = 'binaryPackagesCount' as const;
 export const mainStepSucceededState = 'mainStepSucceeded' as const;
 
@@ -66,7 +67,8 @@ export function setEnvVariable(name: string, value: string) {
 
 export const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT' as const;
 export const ENV_VCPKG_ROOT = 'VCPKG_ROOT' as const;
-export const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE' as const;
+export const ENV_VCPKG_BINARY_SOURCES = 'VCPKG_BINARY_SOURCES' as const;
+export const ENV_VCPKG_DEFAULT_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE' as const;
 
 export type BinaryPackage = {
     filePath: string;

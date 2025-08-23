@@ -71059,9 +71059,11 @@ module.exports = {
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
   $U: () => (/* binding */ AbortActionError),
-  zx: () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
+  r5: () => (/* binding */ ENV_VCPKG_BINARY_SOURCES),
+  z2: () => (/* binding */ ENV_VCPKG_DEFAULT_BINARY_CACHE),
   uN: () => (/* binding */ ENV_VCPKG_INSTALLATION_ROOT),
   Tp: () => (/* binding */ ENV_VCPKG_ROOT),
+  Ec: () => (/* binding */ binaryCachePathState),
   hE: () => (/* binding */ binaryPackagesCountState),
   pg: () => (/* binding */ cacheKeyState),
   Mz: () => (/* binding */ errorAsString),
@@ -71088,6 +71090,7 @@ const external_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import
 
 
 const cacheKeyState = 'cacheKey';
+const binaryCachePathState = 'binaryCachePath';
 const binaryPackagesCountState = 'binaryPackagesCount';
 const mainStepSucceededState = 'mainStepSucceeded';
 function getInputVerbose(name, inputOptions) {
@@ -71134,7 +71137,8 @@ function setEnvVariable(name, value) {
 }
 const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT';
 const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
-const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
+const ENV_VCPKG_BINARY_SOURCES = 'VCPKG_BINARY_SOURCES';
+const ENV_VCPKG_DEFAULT_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 const ZIP_EXTENSION = '.zip';
 function isZipFile(fileName) {
     return fileName.endsWith(ZIP_EXTENSION);
@@ -71237,26 +71241,24 @@ async function execCommand(command, args, shell) {
         throw new _common_js__WEBPACK_IMPORTED_MODULE_8__/* .AbortActionError */ .$U(`Command '${command}' failed with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .errorAsString */ .Mz)(error)}'`);
     }
 }
-async function countBinaryPackages() {
+async function countBinaryPackages(binaryCachePath) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Counting packages in binary cache');
     let count = 0;
-    await (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .findBinaryPackagesInDir */ .Mh)((0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_CACHE */ .zx), (_dirPath, _fileName) => {
+    await (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .findBinaryPackagesInDir */ .Mh)(binaryCachePath, (_dirPath, _fileName) => {
         ++count;
     });
     return count;
 }
 async function restoreCache(inputs) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__.startGroup('Restore cache');
-    let fromEnv = false;
     let cacheDir = inputs.binaryCachePath;
     if (cacheDir) {
         console.info('Using binary cache path from action inputs');
     }
     else {
-        cacheDir = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_CACHE */ .zx, false);
+        cacheDir = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_DEFAULT_BINARY_CACHE */ .z2, false);
         if (cacheDir) {
-            console.info(`Using binary cache path from ${_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_CACHE */ .zx} environment variable`);
-            fromEnv = true;
+            console.info(`Using binary cache path from ${_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_DEFAULT_BINARY_CACHE */ .z2} environment variable`);
         }
         else {
             console.info('Using default binary cache path');
@@ -71265,9 +71267,8 @@ async function restoreCache(inputs) {
     }
     cacheDir = path__WEBPACK_IMPORTED_MODULE_5__.resolve(cacheDir);
     console.info('Vcpkg binary cache path is', cacheDir);
-    if (!fromEnv) {
-        (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .setEnvVariable */ .Iw)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_CACHE */ .zx, cacheDir);
-    }
+    (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .setEnvVariable */ .Iw)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_SOURCES */ .r5, `clear;files,${cacheDir},${inputs.saveCache ? 'readwrite' : 'read'}`);
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .binaryCachePathState */ .Ec, cacheDir);
     try {
         await fs_promises__WEBPACK_IMPORTED_MODULE_3__.mkdir(cacheDir, { recursive: true });
     }
@@ -71297,7 +71298,7 @@ async function restoreCache(inputs) {
         const hitKey = await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.restoreCache([cacheDir], key, [restoreKey]);
         if (hitKey != null) {
             console.info('Cache hit on key', hitKey);
-            const binaryPackagesCount = (await countBinaryPackages());
+            const binaryPackagesCount = (await countBinaryPackages(cacheDir));
             _actions_core__WEBPACK_IMPORTED_MODULE_1__.saveState(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .binaryPackagesCountState */ .hE, binaryPackagesCount.toString());
             console.info('Binary packages count is', binaryPackagesCount);
         }

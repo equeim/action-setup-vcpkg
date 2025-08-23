@@ -2,7 +2,7 @@ import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import * as fs from 'fs/promises';
 import path from 'path';
-import { AbortActionError, BinaryPackage, binaryPackagesCountState, cacheKeyState, ENV_VCPKG_BINARY_CACHE, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
+import { AbortActionError, binaryCachePathState, BinaryPackage, binaryPackagesCountState, cacheKeyState, errorAsString, findBinaryPackagesInDir, getEnvVariable, mainStepSucceededState, parseInputs, runMain } from './common.js';
 import { Architecture, extractBinaryPackageControl, PackageName } from './extractControl.js';
 
 function bytesToMibibytesString(bytes: number): string {
@@ -21,7 +21,7 @@ async function findBinaryPackages(): Promise<BinaryPackage[]> {
     };
 
     const statPromises: Promise<void>[] = [];
-    await findBinaryPackagesInDir(getEnvVariable(ENV_VCPKG_BINARY_CACHE), (dirPath, fileName) => {
+    await findBinaryPackagesInDir(core.getState(binaryCachePathState), (dirPath, fileName) => {
         statPromises.push(statPackage(path.join(dirPath, fileName)));
     });
     await Promise.all(statPromises);
@@ -104,7 +104,7 @@ async function saveCache() {
     }
     console.info('Saving cache with key', key);
     try {
-        await cache.saveCache([getEnvVariable(ENV_VCPKG_BINARY_CACHE)], key);
+        await cache.saveCache([core.getState(binaryCachePathState)], key);
     } catch (error) {
         console.error(error);
         core.error(`Failed to save cache with error ${errorAsString(error)}`);

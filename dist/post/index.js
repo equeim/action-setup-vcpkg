@@ -66397,18 +66397,17 @@ function defaultCallback(err) {
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
   $U: () => (/* binding */ AbortActionError),
-  zx: () => (/* binding */ ENV_VCPKG_BINARY_CACHE),
+  Ec: () => (/* binding */ binaryCachePathState),
   hE: () => (/* binding */ binaryPackagesCountState),
   pg: () => (/* binding */ cacheKeyState),
   Mz: () => (/* binding */ errorAsString),
   Mh: () => (/* binding */ findBinaryPackagesInDir),
-  mT: () => (/* binding */ getEnvVariable),
   oN: () => (/* binding */ mainStepSucceededState),
   TL: () => (/* binding */ parseInputs),
   VN: () => (/* binding */ runMain)
 });
 
-// UNUSED EXPORTS: ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, setEnvVariable
+// UNUSED EXPORTS: ENV_VCPKG_BINARY_SOURCES, ENV_VCPKG_DEFAULT_BINARY_CACHE, ENV_VCPKG_INSTALLATION_ROOT, ENV_VCPKG_ROOT, getEnvVariable, setEnvVariable
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var lib_core = __nccwpck_require__(7484);
@@ -66425,6 +66424,7 @@ const external_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import
 
 
 const cacheKeyState = 'cacheKey';
+const binaryCachePathState = 'binaryCachePath';
 const binaryPackagesCountState = 'binaryPackagesCount';
 const mainStepSucceededState = 'mainStepSucceeded';
 function getInputVerbose(name, inputOptions) {
@@ -66450,7 +66450,7 @@ function parseInputs() {
     return inputs;
 }
 function getEnvVariable(name, required = true) {
-    let value = external_process_namespaceObject.env[name];
+    let value = env[name];
     if (value === undefined) {
         console.info(`${name} environment variable is not set`);
     }
@@ -66471,7 +66471,8 @@ function setEnvVariable(name, value) {
 }
 const ENV_VCPKG_INSTALLATION_ROOT = 'VCPKG_INSTALLATION_ROOT';
 const ENV_VCPKG_ROOT = 'VCPKG_ROOT';
-const ENV_VCPKG_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
+const ENV_VCPKG_BINARY_SOURCES = 'VCPKG_BINARY_SOURCES';
+const ENV_VCPKG_DEFAULT_BINARY_CACHE = 'VCPKG_DEFAULT_BINARY_CACHE';
 const ZIP_EXTENSION = '.zip';
 function isZipFile(fileName) {
     return fileName.endsWith(ZIP_EXTENSION);
@@ -66668,7 +66669,7 @@ async function findBinaryPackages() {
         packages.push({ filePath: filePath, size: stat.size, mtime: stat.mtime });
     };
     const statPromises = [];
-    await (0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .findBinaryPackagesInDir */ .Mh)((0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .getEnvVariable */ .mT)(_common_js__WEBPACK_IMPORTED_MODULE_4__/* .ENV_VCPKG_BINARY_CACHE */ .zx), (dirPath, fileName) => {
+    await (0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .findBinaryPackagesInDir */ .Mh)(_actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_4__/* .binaryCachePathState */ .Ec), (dirPath, fileName) => {
         statPromises.push(statPackage(path__WEBPACK_IMPORTED_MODULE_3___default().join(dirPath, fileName)));
     });
     await Promise.all(statPromises);
@@ -66748,7 +66749,7 @@ async function saveCache() {
     }
     console.info('Saving cache with key', key);
     try {
-        await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.saveCache([(0,_common_js__WEBPACK_IMPORTED_MODULE_4__/* .getEnvVariable */ .mT)(_common_js__WEBPACK_IMPORTED_MODULE_4__/* .ENV_VCPKG_BINARY_CACHE */ .zx)], key);
+        await _actions_cache__WEBPACK_IMPORTED_MODULE_0__.saveCache([_actions_core__WEBPACK_IMPORTED_MODULE_1__.getState(_common_js__WEBPACK_IMPORTED_MODULE_4__/* .binaryCachePathState */ .Ec)], key);
     }
     catch (error) {
         console.error(error);
