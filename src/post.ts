@@ -77,7 +77,8 @@ async function removeOldVersions(packages: BinaryPackage[]) {
                 rmPromises.push(fs.rm(pkg.filePath));
                 remainingPackages.delete(pkg);
             }
-            const last = pkgsWithSameNameAndArch.at(0)!!;
+
+            const last = pkgsWithSameNameAndArch[0]!!;
             console.info(` - Latest is ${last.filePath}, with size ${bytesToMibibytesString(last.size)} and mtime ${last.mtime.toISOString()}`);
         }
     }

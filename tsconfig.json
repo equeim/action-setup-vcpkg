@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "outDir": "./dist",
-    "target": "es2021",
-    "module": "node16",
+    "target": "es2024",
+    "module": "node20",
     "moduleResolution": "node16",
     "strict": true,
     "exactOptionalPropertyTypes": true,
