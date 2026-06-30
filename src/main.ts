@@ -73,13 +73,15 @@ async function restoreCache(inputs: Inputs) {
      * last part of key is GITHUB_RUN_ID so that exact matches never occur and cache is upload
      * only if vcpkg actually created new binary packages
      */
-    const runnerOs = getEnvVariable('RUNNER_OS');
-    let restoreKey = `vcpkg|RUNNER_OS=${runnerOs}`;
+    let restoreKey = `vcpkg|RUNNER_OS=${getEnvVariable('RUNNER_OS')}|`;
     if (inputs.cacheKeyTag) {
-        restoreKey += `|tag=${inputs.cacheKeyTag}|`;
+        restoreKey += `tag=${inputs.cacheKeyTag}|`;
     } else {
-        restoreKey += `|tag is not set|`;
+        restoreKey += `tag is not set|`;
     }
+    const imageVersion = getEnvVariable('ImageVersion');
+    restoreKey += `ImageVersion=${imageVersion}|`;
+
     console.info('Cache restore key is', restoreKey);
     const runId = getEnvVariable('GITHUB_RUN_ID');
     const key = `${restoreKey}GITHUB_RUN_ID=${runId}`;
