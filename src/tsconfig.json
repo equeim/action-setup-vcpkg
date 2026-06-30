@@ -12,5 +12,7 @@
     "noPropertyAccessFromIndexSignature": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["./src/**/*"]
+  "include": [
+    "./**/*"
+  ]
 }

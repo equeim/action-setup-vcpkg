@@ -15,17 +15,17 @@
   },
   "homepage": "https://github.com/equeim/action-setup-vcpkg#readme",
   "dependencies": {
-    "@actions/cache": "^6.0.0",
-    "@actions/core": "^3.0.0",
-    "ajv": "^8.18.0",
+    "@actions/cache": "^6.1.0",
+    "@actions/core": "^3.0.1",
+    "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "yauzl": "^3.2.0"
+    "yauzl": "^3.4.0"
   },
   "devDependencies": {
-    "@types/node": "^24.10.13",
-    "@types/yauzl": "^2.10.3",
-    "@vercel/ncc": "^0.38.4",
-    "typescript": "^5.9.3"
+    "@types/node": "^24.13.2",
+    "@types/yauzl": "^3.4.0",
+    "@vercel/ncc": "^0.44.1",
+    "typescript": "^6.0.3"
   },
-  "packageManager": "yarn@4.12.0"
+  "packageManager": "yarn@4.17.0"
 }
