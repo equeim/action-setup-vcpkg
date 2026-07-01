@@ -19,10 +19,9 @@ export type BinaryPackageControl = {
 };
 
 export async function extractBinaryPackageControl(pkg: BinaryPackage): Promise<BinaryPackageControl> {
-    const zipfile = await yauzl.openPromise(pkg.filePath, { autoClose: true, lazyEntries: true });
+    const zipfile = await yauzl.openPromise(pkg.filePath, { autoClose: false, lazyEntries: true });
     try {
         return await parseControl(zipfile, await findControlEntry(zipfile));
-
     } finally {
         zipfile.close();
     }

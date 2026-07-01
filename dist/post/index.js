@@ -40213,7 +40213,7 @@ var ArchitectureBrand;
 })(ArchitectureBrand || (ArchitectureBrand = {}));
 ;
 async function extractBinaryPackageControl(pkg) {
-    const zipfile = await yauzl/* openPromise */.sO(pkg.filePath, { autoClose: true, lazyEntries: true });
+    const zipfile = await yauzl/* openPromise */.sO(pkg.filePath, { autoClose: false, lazyEntries: true });
     try {
         return await parseControl(zipfile, await findControlEntry(zipfile));
     }
