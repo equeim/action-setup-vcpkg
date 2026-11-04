@@ -45300,18 +45300,21 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __we
 /* harmony import */ var _actions_core__WEBPACK_IMPORTED_MODULE_1__ = __nccwpck_require__(3838);
 /* harmony import */ var child_process__WEBPACK_IMPORTED_MODULE_2__ = __nccwpck_require__(5317);
 /* harmony import */ var child_process__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__nccwpck_require__.n(child_process__WEBPACK_IMPORTED_MODULE_2__);
-/* harmony import */ var fs_promises__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(1943);
-/* harmony import */ var fs_promises__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__nccwpck_require__.n(fs_promises__WEBPACK_IMPORTED_MODULE_3__);
-/* harmony import */ var os__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(857);
-/* harmony import */ var os__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__nccwpck_require__.n(os__WEBPACK_IMPORTED_MODULE_4__);
-/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(6928);
-/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__nccwpck_require__.n(path__WEBPACK_IMPORTED_MODULE_5__);
-/* harmony import */ var ajv__WEBPACK_IMPORTED_MODULE_9__ = __nccwpck_require__(2463);
-/* harmony import */ var ajv__WEBPACK_IMPORTED_MODULE_9___default = /*#__PURE__*/__nccwpck_require__.n(ajv__WEBPACK_IMPORTED_MODULE_9__);
-/* harmony import */ var ajv_formats__WEBPACK_IMPORTED_MODULE_6__ = __nccwpck_require__(2815);
-/* harmony import */ var ajv_formats__WEBPACK_IMPORTED_MODULE_6___default = /*#__PURE__*/__nccwpck_require__.n(ajv_formats__WEBPACK_IMPORTED_MODULE_6__);
-/* harmony import */ var _common_js__WEBPACK_IMPORTED_MODULE_7__ = __nccwpck_require__(3718);
-/* harmony import */ var _schemas_js__WEBPACK_IMPORTED_MODULE_8__ = __nccwpck_require__(9011);
+/* harmony import */ var crypto__WEBPACK_IMPORTED_MODULE_3__ = __nccwpck_require__(6982);
+/* harmony import */ var crypto__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__nccwpck_require__.n(crypto__WEBPACK_IMPORTED_MODULE_3__);
+/* harmony import */ var fs_promises__WEBPACK_IMPORTED_MODULE_4__ = __nccwpck_require__(1943);
+/* harmony import */ var fs_promises__WEBPACK_IMPORTED_MODULE_4___default = /*#__PURE__*/__nccwpck_require__.n(fs_promises__WEBPACK_IMPORTED_MODULE_4__);
+/* harmony import */ var os__WEBPACK_IMPORTED_MODULE_5__ = __nccwpck_require__(857);
+/* harmony import */ var os__WEBPACK_IMPORTED_MODULE_5___default = /*#__PURE__*/__nccwpck_require__.n(os__WEBPACK_IMPORTED_MODULE_5__);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_6__ = __nccwpck_require__(6928);
+/* harmony import */ var path__WEBPACK_IMPORTED_MODULE_6___default = /*#__PURE__*/__nccwpck_require__.n(path__WEBPACK_IMPORTED_MODULE_6__);
+/* harmony import */ var ajv__WEBPACK_IMPORTED_MODULE_10__ = __nccwpck_require__(2463);
+/* harmony import */ var ajv__WEBPACK_IMPORTED_MODULE_10___default = /*#__PURE__*/__nccwpck_require__.n(ajv__WEBPACK_IMPORTED_MODULE_10__);
+/* harmony import */ var ajv_formats__WEBPACK_IMPORTED_MODULE_7__ = __nccwpck_require__(2815);
+/* harmony import */ var ajv_formats__WEBPACK_IMPORTED_MODULE_7___default = /*#__PURE__*/__nccwpck_require__.n(ajv_formats__WEBPACK_IMPORTED_MODULE_7__);
+/* harmony import */ var _common_js__WEBPACK_IMPORTED_MODULE_8__ = __nccwpck_require__(3718);
+/* harmony import */ var _schemas_js__WEBPACK_IMPORTED_MODULE_9__ = __nccwpck_require__(9011);
+
 
 
 
@@ -45340,16 +45343,28 @@ async function execCommand(command, args, shell) {
     }
     catch (error) {
         console.error(error);
-        throw new _common_js__WEBPACK_IMPORTED_MODULE_7__/* .AbortActionError */ .$U(`Command '${command}' failed with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .errorAsString */ .Mz)(error)}'`);
+        throw new _common_js__WEBPACK_IMPORTED_MODULE_8__/* .AbortActionError */ .$U(`Command '${command}' failed with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .errorAsString */ .Mz)(error)}'`);
     }
 }
 async function countBinaryPackages(binaryCachePath) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .startGroup */ .Oh('Counting packages in binary cache');
     let count = 0;
-    await (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .findBinaryPackagesInDir */ .Mh)(binaryCachePath, (_dirPath, _fileName) => {
+    await (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .findBinaryPackagesInDir */ .Mh)(binaryCachePath, (_dirPath, _fileName) => {
         ++count;
     });
     return count;
+}
+async function computeVcpkgConfigurationHash() {
+    try {
+        const hash = crypto__WEBPACK_IMPORTED_MODULE_3__.createHash('sha256');
+        hash.update(await fs_promises__WEBPACK_IMPORTED_MODULE_4__.readFile('vcpkg-configuration.json'));
+        hash.update(await fs_promises__WEBPACK_IMPORTED_MODULE_4__.readFile('vcpkg.json'));
+        return hash.digest('hex');
+    }
+    catch (error) {
+        console.error(error);
+        throw new _common_js__WEBPACK_IMPORTED_MODULE_8__/* .AbortActionError */ .$U(`Failed to compute hash of file '${path__WEBPACK_IMPORTED_MODULE_6__}' info with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .errorAsString */ .Mz)(error)}'`);
+    }
 }
 async function restoreCache(inputs) {
     _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .startGroup */ .Oh('Restore cache');
@@ -45358,61 +45373,63 @@ async function restoreCache(inputs) {
         console.info('Using binary cache path from action inputs');
     }
     else {
-        cacheDir = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .mT)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_DEFAULT_BINARY_CACHE */ .z2, false);
+        cacheDir = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_DEFAULT_BINARY_CACHE */ .z2, false);
         if (cacheDir) {
-            console.info(`Using binary cache path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_DEFAULT_BINARY_CACHE */ .z2} environment variable`);
+            console.info(`Using binary cache path from ${_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_DEFAULT_BINARY_CACHE */ .z2} environment variable`);
         }
         else {
             console.info('Using default binary cache path');
             cacheDir = 'vcpkg_binary_cache';
         }
     }
-    cacheDir = path__WEBPACK_IMPORTED_MODULE_5__.resolve(cacheDir);
+    cacheDir = path__WEBPACK_IMPORTED_MODULE_6__.resolve(cacheDir);
     console.info('Vcpkg binary cache path is', cacheDir);
-    (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .setEnvVariable */ .Iw)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_BINARY_SOURCES */ .r5, `clear;files,${cacheDir},${inputs.saveCache ? 'readwrite' : 'read'}`);
-    _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .binaryCachePathState */ .Ec, cacheDir);
+    (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .setEnvVariable */ .Iw)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_BINARY_SOURCES */ .r5, `clear;files,${cacheDir},${inputs.saveCache ? 'readwrite' : 'read'}`);
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .binaryCachePathState */ .Ec, cacheDir);
     try {
-        await fs_promises__WEBPACK_IMPORTED_MODULE_3__.mkdir(cacheDir, { recursive: true });
+        await fs_promises__WEBPACK_IMPORTED_MODULE_4__.mkdir(cacheDir, { recursive: true });
     }
     catch (error) {
         console.error(error);
-        throw new _common_js__WEBPACK_IMPORTED_MODULE_7__/* .AbortActionError */ .$U(`Failed to create cache directory with error ${(0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .errorAsString */ .Mz)(error)}`);
+        throw new _common_js__WEBPACK_IMPORTED_MODULE_8__/* .AbortActionError */ .$U(`Failed to create cache directory with error ${(0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .errorAsString */ .Mz)(error)}`);
     }
     /**
      * Since there is no reliable way to know whether vcpkg will rebuild packages,
      * last part of key is GITHUB_RUN_ID so that exact matches never occur and cache is upload
      * only if vcpkg actually created new binary packages
      */
-    let restoreKey = `vcpkg|RUNNER_OS=${(0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .mT)('RUNNER_OS')}|`;
+    let restoreKey = `vcpkg|RUNNER_OS=${(0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)('RUNNER_OS')}|`;
     if (inputs.cacheKeyTag) {
         restoreKey += `tag=${inputs.cacheKeyTag}|`;
     }
     else {
         restoreKey += `tag is not set|`;
     }
-    const imageVersion = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .mT)('ImageVersion');
+    const vcpkgConfigurationHash = await computeVcpkgConfigurationHash();
+    restoreKey += `vcpkg configuration hash=${vcpkgConfigurationHash}|`;
+    const imageVersion = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)('ImageVersion');
     restoreKey += `ImageVersion=${imageVersion}|`;
     console.info('Cache restore key is', restoreKey);
-    const runId = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .mT)('GITHUB_RUN_ID');
+    const runId = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)('GITHUB_RUN_ID');
     const key = `${restoreKey}GITHUB_RUN_ID=${runId}`;
-    _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .cacheKeyState */ .pg, key);
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .cacheKeyState */ .pg, key);
     console.info('Cache key is', key);
     try {
         const hitKey = await _actions_cache__WEBPACK_IMPORTED_MODULE_0__/* .restoreCache */ .P3([cacheDir], key, [restoreKey]);
         if (hitKey != null) {
             console.info('Cache hit on key', hitKey);
             const binaryPackagesCount = (await countBinaryPackages(cacheDir));
-            _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .binaryPackagesCountState */ .hE, binaryPackagesCount.toString());
+            _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .binaryPackagesCountState */ .hE, binaryPackagesCount.toString());
             console.info('Binary packages count is', binaryPackagesCount);
         }
         else {
             console.info('Cache miss');
-            _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .binaryPackagesCountState */ .hE, '0');
+            _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .binaryPackagesCountState */ .hE, '0');
         }
     }
     catch (error) {
         console.error(error);
-        _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .error */ .z3(`Failed to restore cache with error ${(0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .errorAsString */ .Mz)(error)}`);
+        _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .error */ .z3(`Failed to restore cache with error ${(0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .errorAsString */ .Mz)(error)}`);
     }
     _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .endGroup */ .N4();
 }
@@ -45423,18 +45440,18 @@ function resolveVcpkgRoot(inputs) {
         console.info('Using vcpkg root directory path from action inputs');
     }
     else {
-        vcpkgRoot = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .getEnvVariable */ .mT)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uN, false);
+        vcpkgRoot = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uN, false);
         if (vcpkgRoot) {
-            console.info(`Using vcpkg root directory path from ${_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uN} environment variable`);
+            console.info(`Using vcpkg root directory path from ${_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_INSTALLATION_ROOT */ .uN} environment variable`);
         }
         else {
             console.info('Using default vcpkg root directory path');
             vcpkgRoot = 'vcpkg';
         }
     }
-    vcpkgRoot = path__WEBPACK_IMPORTED_MODULE_5__.resolve(vcpkgRoot);
+    vcpkgRoot = path__WEBPACK_IMPORTED_MODULE_6__.resolve(vcpkgRoot);
     console.info('Vcpkg root directory path is', vcpkgRoot);
-    (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .setEnvVariable */ .Iw)(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .ENV_VCPKG_ROOT */ .Tp, vcpkgRoot);
+    (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .setEnvVariable */ .Iw)(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .ENV_VCPKG_ROOT */ .Tp, vcpkgRoot);
     _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .endGroup */ .N4();
     return vcpkgRoot;
 }
@@ -45442,13 +45459,13 @@ async function extractVcpkgRepositoryInfo() {
     try {
         let url;
         let commit;
-        const ajv = new ajv__WEBPACK_IMPORTED_MODULE_9__.Ajv();
-        ajv_formats__WEBPACK_IMPORTED_MODULE_6___default()["default"](ajv);
-        ajv.addSchema(_schemas_js__WEBPACK_IMPORTED_MODULE_8__/* .VCPKG_SCHEMA_DEFINITIONS */ .TI);
+        const ajv = new ajv__WEBPACK_IMPORTED_MODULE_10__.Ajv();
+        ajv_formats__WEBPACK_IMPORTED_MODULE_7___default()["default"](ajv);
+        ajv.addSchema(_schemas_js__WEBPACK_IMPORTED_MODULE_9__/* .VCPKG_SCHEMA_DEFINITIONS */ .TI);
         try {
-            const vcpkgConfigurationJsonData = await fs_promises__WEBPACK_IMPORTED_MODULE_3__.readFile('vcpkg-configuration.json', { encoding: 'utf-8' });
+            const vcpkgConfigurationJsonData = await fs_promises__WEBPACK_IMPORTED_MODULE_4__.readFile('vcpkg-configuration.json', { encoding: 'utf-8' });
             const vcpkgConfigurationJson = JSON.parse(vcpkgConfigurationJsonData);
-            const vcpkgConfigurationJsonValidator = ajv.compile(_schemas_js__WEBPACK_IMPORTED_MODULE_8__/* .VCPKG_CONFIGURATION_JSON_SCHEMA */ .aR);
+            const vcpkgConfigurationJsonValidator = ajv.compile(_schemas_js__WEBPACK_IMPORTED_MODULE_9__/* .VCPKG_CONFIGURATION_JSON_SCHEMA */ .aR);
             if (!vcpkgConfigurationJsonValidator(vcpkgConfigurationJson)) {
                 console.error('Failed to validate vcpkg-configuration.json:', vcpkgConfigurationJsonValidator.errors);
                 throw Error('Failed to validate vcpkg-configuration.json');
@@ -45472,9 +45489,9 @@ async function extractVcpkgRepositoryInfo() {
         }
         catch (error) {
             if (error?.code === 'ENOENT') {
-                const vcpkgJsonData = await fs_promises__WEBPACK_IMPORTED_MODULE_3__.readFile('vcpkg.json', { encoding: 'utf-8' });
+                const vcpkgJsonData = await fs_promises__WEBPACK_IMPORTED_MODULE_4__.readFile('vcpkg.json', { encoding: 'utf-8' });
                 const vcpkgJson = JSON.parse(vcpkgJsonData);
-                const vcpkgJsonValidator = ajv.compile(_schemas_js__WEBPACK_IMPORTED_MODULE_8__/* .VCPKG_JSON_SCHEMA */ .xR);
+                const vcpkgJsonValidator = ajv.compile(_schemas_js__WEBPACK_IMPORTED_MODULE_9__/* .VCPKG_JSON_SCHEMA */ .xR);
                 if (!vcpkgJsonValidator(vcpkgJson)) {
                     console.error('Failed to validate vcpkg.json:', vcpkgJsonValidator.errors);
                     throw Error('Failed to validate vcpkg.json');
@@ -45499,7 +45516,7 @@ async function extractVcpkgRepositoryInfo() {
     }
     catch (error) {
         console.error(error);
-        throw new _common_js__WEBPACK_IMPORTED_MODULE_7__/* .AbortActionError */ .$U(`Failed to extract vcpkg repository info with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .errorAsString */ .Mz)(error)}'`);
+        throw new _common_js__WEBPACK_IMPORTED_MODULE_8__/* .AbortActionError */ .$U(`Failed to extract vcpkg repository info with error '${(0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .errorAsString */ .Mz)(error)}'`);
     }
 }
 async function setupVcpkg(vcpkgRoot) {
@@ -45507,7 +45524,7 @@ async function setupVcpkg(vcpkgRoot) {
     const repositoryInfo = await extractVcpkgRepositoryInfo();
     let checkoutExistingDirectory;
     try {
-        const stats = await fs_promises__WEBPACK_IMPORTED_MODULE_3__.stat(vcpkgRoot);
+        const stats = await fs_promises__WEBPACK_IMPORTED_MODULE_4__.stat(vcpkgRoot);
         checkoutExistingDirectory = stats.isDirectory();
     }
     catch (error) {
@@ -45525,7 +45542,7 @@ async function setupVcpkg(vcpkgRoot) {
     }
     let bootstrapScript;
     let shell;
-    if (os__WEBPACK_IMPORTED_MODULE_4__.platform() == 'win32') {
+    if (os__WEBPACK_IMPORTED_MODULE_5__.platform() == 'win32') {
         bootstrapScript = 'bootstrap-vcpkg.bat';
         shell = true;
     }
@@ -45533,12 +45550,12 @@ async function setupVcpkg(vcpkgRoot) {
         bootstrapScript = 'bootstrap-vcpkg.sh';
         shell = false;
     }
-    await execCommand(path__WEBPACK_IMPORTED_MODULE_5__.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], shell);
+    await execCommand(path__WEBPACK_IMPORTED_MODULE_6__.join(vcpkgRoot, bootstrapScript), ['-disableMetrics'], shell);
     _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .endGroup */ .N4();
     return vcpkgRoot;
 }
 async function main() {
-    const inputs = (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .parseInputs */ .TL)();
+    const inputs = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .parseInputs */ .TL)();
     await restoreCache(inputs);
     if (inputs.runSetup) {
         const vcpkgRoot = resolveVcpkgRoot(inputs);
@@ -45546,9 +45563,9 @@ async function main() {
             await setupVcpkg(vcpkgRoot);
         }
     }
-    _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_7__/* .mainStepSucceededState */ .oN, 'true');
+    _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .mainStepSucceededState */ .oN, 'true');
 }
-await (0,_common_js__WEBPACK_IMPORTED_MODULE_7__/* .runMain */ .VN)(main);
+await (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .runMain */ .VN)(main);
 
 __webpack_async_result__();
 } catch(e) { __webpack_async_result__(e); } }, 1);

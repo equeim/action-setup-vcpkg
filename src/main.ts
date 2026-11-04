@@ -1,6 +1,7 @@
 import * as cache from '@actions/cache';
 import * as core from '@actions/core';
 import { ChildProcess, spawn } from 'child_process';
+import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
@@ -42,6 +43,18 @@ async function countBinaryPackages(binaryCachePath: string): Promise<number> {
     return count;
 }
 
+async function computeVcpkgConfigurationHash(): Promise<string> {
+    try {
+        const hash = crypto.createHash('sha256');
+        hash.update(await fs.readFile('vcpkg-configuration.json'));
+        hash.update(await fs.readFile('vcpkg.json'));
+        return hash.digest('hex');
+    } catch (error) {
+        console.error(error);
+        throw new AbortActionError(`Failed to compute hash of file '${path}' info with error '${errorAsString(error)}'`);
+    }
+}
+
 async function restoreCache(inputs: Inputs) {
     core.startGroup('Restore cache');
 
@@ -79,6 +92,10 @@ async function restoreCache(inputs: Inputs) {
     } else {
         restoreKey += `tag is not set|`;
     }
+
+    const vcpkgConfigurationHash = await computeVcpkgConfigurationHash();
+    restoreKey += `vcpkg configuration hash=${vcpkgConfigurationHash}|`;
+
     const imageVersion = getEnvVariable('ImageVersion');
     restoreKey += `ImageVersion=${imageVersion}|`;
 
