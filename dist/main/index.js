@@ -44628,15 +44628,17 @@ async function restoreCache(inputs) {
     }
     const vcpkgConfigurationHash = await computeVcpkgConfigurationHash();
     restoreKey += `vcpkg configuration hash=${vcpkgConfigurationHash}|`;
+    const restoreKeys = [restoreKey];
     const imageVersion = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)('ImageVersion');
     restoreKey += `ImageVersion=${imageVersion}|`;
-    console.info('Cache restore key is', restoreKey);
+    restoreKeys.unshift(restoreKey);
+    console.info('Cache restore keys are', restoreKeys);
     const runId = (0,_common_js__WEBPACK_IMPORTED_MODULE_8__/* .getEnvVariable */ .mT)('GITHUB_RUN_ID');
     const key = `${restoreKey}GITHUB_RUN_ID=${runId}`;
     _actions_core__WEBPACK_IMPORTED_MODULE_1__/* .saveState */ .LZ(_common_js__WEBPACK_IMPORTED_MODULE_8__/* .cacheKeyState */ .pg, key);
     console.info('Cache key is', key);
     try {
-        const hitKey = await _actions_cache__WEBPACK_IMPORTED_MODULE_0__/* .restoreCache */ .P3([cacheDir], key, [restoreKey]);
+        const hitKey = await _actions_cache__WEBPACK_IMPORTED_MODULE_0__/* .restoreCache */ .P3([cacheDir], key, restoreKeys);
         if (hitKey != null) {
             console.info('Cache hit on key', hitKey);
             const binaryPackagesCount = (await countBinaryPackages(cacheDir));

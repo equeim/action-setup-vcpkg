@@ -96,16 +96,19 @@ async function restoreCache(inputs: Inputs) {
     const vcpkgConfigurationHash = await computeVcpkgConfigurationHash();
     restoreKey += `vcpkg configuration hash=${vcpkgConfigurationHash}|`;
 
+    const restoreKeys = [restoreKey];
+
     const imageVersion = getEnvVariable('ImageVersion');
     restoreKey += `ImageVersion=${imageVersion}|`;
+    restoreKeys.unshift(restoreKey);
 
-    console.info('Cache restore key is', restoreKey);
+    console.info('Cache restore keys are', restoreKeys);
     const runId = getEnvVariable('GITHUB_RUN_ID');
     const key = `${restoreKey}GITHUB_RUN_ID=${runId}`;
     core.saveState(cacheKeyState, key);
     console.info('Cache key is', key);
     try {
-        const hitKey = await cache.restoreCache([cacheDir], key, [restoreKey]);
+        const hitKey = await cache.restoreCache([cacheDir], key, restoreKeys);
         if (hitKey != null) {
             console.info('Cache hit on key', hitKey);
             const binaryPackagesCount = (await countBinaryPackages(cacheDir));
